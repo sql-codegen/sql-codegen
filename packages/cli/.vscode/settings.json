@@ -1,0 +1,6 @@
+{
+  "cSpell.words": ["Codegen", "dbname", "deps", "hstore", "sqlparser"],
+  "explorer.sortOrder": "mixed",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 4
+}
