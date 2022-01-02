@@ -56,8 +56,13 @@ fn main() {
     let args = Args::new();
 
     // CONFIG
-    let config = Config::new(args);
-    println!("Configuration file\n{:#?}", config);
+    let config = Config::new(args).unwrap_or_else(|error| {
+        eprintln!("{}", error.message);
+        std::process::exit(1);
+    });
+    // println!("Configuration file\n{:#?}", config);
+
+    let codegen = Codegen::new(&config);
 
     // GENERATE SCHEMA DDL
     let mut ddl_schema = ddl_schema::DdlSchema::new(&config);
@@ -65,14 +70,13 @@ fn main() {
 
     // typescript::types::generate(&tables);
     // INIT CODEGEN
-    let codegen = Codegen::new(&config);
     // CONVERT SCHEMA DDL TO DATABASE STRUCT
     let schema_ddl = codegen.load_schema_ddl();
     let dialect = PostgreSqlDialect {};
     let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
     let database = Database::from_statements(&ast);
-    println!("{:#?}", ast);
-    println!("{:#?}", database);
+    // println!("{:#?}", ast);
+    // println!("{:#?}", database);
     // LOAD QUERIES AND PARSE THEM
     let queries = codegen.load_queries();
     println!("QUERIES = {:#?}", queries);

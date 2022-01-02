@@ -10,11 +10,11 @@ impl DdlSchema {
     pub fn new(config: &config::Config) -> Self {
         let params = format!(
             "host={host} user={user} port={port} dbname={database} password={password}",
-            host = config.host,
-            user = config.user,
-            port = config.port,
-            database = config.database,
-            password = config.password
+            host = config.connection.host,
+            user = config.connection.user,
+            port = config.connection.port,
+            database = config.connection.database,
+            password = config.connection.password
         );
         DdlSchema {
             client: Client::connect(&params, NoTls).expect("Could not connect to postgres"),
