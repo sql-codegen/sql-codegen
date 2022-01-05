@@ -2,18 +2,19 @@ mod cli;
 mod codegen;
 mod config;
 mod generate_schema_command;
+mod plugins;
 mod projection;
 mod schema;
-mod typescript;
 mod utils;
-
 use crate::codegen::Codegen;
 use crate::config::Config;
+use crate::plugins::TypeScriptPlugin;
 use crate::projection::Projection;
 use generate_schema_command::GenerateSchemaCommand;
-use sqlparser::ast::{DataType, Query, Select, SetExpr, Statement};
+use sqlparser::ast::{Query, Select, SetExpr, Statement};
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
+use std::fs;
 
 fn process_ast(database: &schema::Database, ast: &Vec<Statement>) -> () {
     for statement in ast {
@@ -76,18 +77,25 @@ fn main() {
                 GenerateSchemaCommand::run(&mut codegen, *override_schema);
             }
         }
-    } else {
     }
-
-    // typescript::types::generate(&tables);
-    // INIT CODEGEN
-    // CONVERT SCHEMA DDL TO DATABASE STRUCT
-    // let schema_ddl = codegen.load_schema_ddl();
-    // let dialect = PostgreSqlDialect {};
-    // let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
-    // let database = Database::from_statements(&ast);
-    // // println!("{:#?}", ast);
-    // // println!("{:#?}", database);
+    // Generate all the files specified in the config.
+    else {
+        let database = schema::Database::from_codegen(&codegen);
+        config.generate.iter().for_each(|generate_config| {
+            let code = generate_config
+                .plugins
+                .iter()
+                .map(|plugin_config| {
+                    if plugin_config.name == "typescript" {
+                        return TypeScriptPlugin::run(&database);
+                    }
+                    String::from("")
+                })
+                .collect::<Vec<String>>()
+                .join("\n");
+            fs::write(&generate_config.output, code).expect("Error creating output file");
+        });
+    }
     // // LOAD QUERIES AND PARSE THEM
     // let queries = codegen.load_queries();
     // println!("QUERIES = {:#?}", queries);

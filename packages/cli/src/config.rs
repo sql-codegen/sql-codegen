@@ -18,7 +18,7 @@ impl<'a> Error<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ConfigConnection {
+pub struct ConnectionConfig {
     pub host: String,
     pub user: String,
     pub port: u16,
@@ -27,11 +27,23 @@ pub struct ConfigConnection {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateConfig {
+    pub output: String,
+    pub plugins: Vec<PluginConfig>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PluginConfig {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub dialect: String,
-    pub connection: ConfigConnection,
+    pub connection: ConnectionConfig,
     pub schema: String,
     pub queries: String,
+    pub generate: Vec<GenerateConfig>,
 }
 
 impl Config {

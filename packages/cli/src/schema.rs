@@ -1,6 +1,9 @@
-use sqlparser::ast::{ColumnDef, DataType, Statement};
-
-use crate::utils::object_name_to_string;
+use crate::{codegen::Codegen, utils::object_name_to_string};
+use sqlparser::{
+    ast::{ColumnDef, DataType, Statement},
+    dialect::PostgreSqlDialect,
+    parser::Parser,
+};
 
 #[derive(Debug)]
 pub struct Database {
@@ -17,6 +20,13 @@ impl PartialEq for Database {
 impl Database {
     pub fn new(name: String, tables: Vec<Table>) -> Database {
         Database { name, tables }
+    }
+
+    pub fn from_codegen(codegen: &Codegen) -> Database {
+        let schema_ddl = codegen.load_schema_ddl();
+        let dialect = PostgreSqlDialect {};
+        let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
+        Database::from_statements(&ast)
     }
 
     pub fn from_statements(statements: &Vec<Statement>) -> Database {
