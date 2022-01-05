@@ -1,4 +1,3 @@
-use crate::args::Args;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -29,29 +28,34 @@ pub struct ConfigConnection {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub dialect: String,
     pub connection: ConfigConnection,
     pub schema: String,
     pub queries: String,
 }
 
 impl Config {
-    pub fn new(args: Args) -> Result<Config, Error<'static>> {
-        let config_file_path = args.config.or_else(|| Config::find_config_file_path());
+    pub fn new(config_file_path: &Option<String>) -> Result<Config, Error<'static>> {
+        let config_file_path = match &config_file_path {
+            Some(config_file_path) => Some(config_file_path.clone()),
+            None => Config::find_config_file_path(),
+        };
         if config_file_path.is_none() {
             return Err(Error::new(
                 "The config file not found in current or parent directories.",
             ));
         }
-        let config_file_content = fs::read_to_string(config_file_path.unwrap()).or_else(|error| {
-            if let ErrorKind::NotFound = error.kind() {
-                return Err(Error::new("The config file does not exist."));
-            } else {
-                return Err(Error::new("Error reading config file."));
-            }
-        });
-        let config: Result<Config, Error> = serde_json::from_str(&config_file_content?)
-            .or_else(|_| Err(Error::new("Error parsing config file.")));
-        Ok(config?)
+        let config_file_content =
+            fs::read_to_string(config_file_path.unwrap()).or_else(|error| {
+                if let ErrorKind::NotFound = error.kind() {
+                    return Err(Error::new("The config file does not exist."));
+                } else {
+                    return Err(Error::new("Error reading config file."));
+                }
+            })?;
+        let config = serde_json::from_str::<Config>(&config_file_content)
+            .or_else(|_| Err(Error::new("Error parsing config file.")))?;
+        Ok(config)
     }
 
     fn find_config_file_path() -> Option<String> {

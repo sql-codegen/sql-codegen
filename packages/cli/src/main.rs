@@ -1,17 +1,16 @@
-mod args;
+mod cli;
 mod codegen;
 mod config;
-mod ddl_schema;
+mod generate_schema_command;
 mod projection;
 mod schema;
 mod typescript;
 mod utils;
 
-use crate::args::Args;
 use crate::codegen::Codegen;
 use crate::config::Config;
 use crate::projection::Projection;
-use crate::schema::Database;
+use generate_schema_command::GenerateSchemaCommand;
 use sqlparser::ast::{DataType, Query, Select, SetExpr, Statement};
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
@@ -53,34 +52,46 @@ pub fn run_command(database: &schema::Database, sql_queries: Vec<String>) -> () 
 }
 
 fn main() {
-    let args = Args::new();
+    // Collect the CLI arguments.
+    let cli = cli::Cli::new();
 
-    // CONFIG
-    let config = Config::new(args).unwrap_or_else(|error| {
+    // Construct config struct from the CLI config argument.
+    let config = Config::new(&cli.config_file_path).unwrap_or_else(|error| {
         eprintln!("{}", error.message);
         std::process::exit(1);
     });
-    // println!("Configuration file\n{:#?}", config);
+    println!("{:#?}", config);
 
-    let codegen = Codegen::new(&config);
+    // Initialize codegen with config.
+    let mut codegen = Codegen::new(&config).unwrap_or_else(|error| {
+        eprintln!("{}", error.message);
+        std::process::exit(1);
+    });
 
-    // GENERATE SCHEMA DDL
-    let mut ddl_schema = ddl_schema::DdlSchema::new(&config);
-    ddl_schema.generate();
+    // Run command if provided.
+    if let Some(command) = &cli.command {
+        match command {
+            cli::Command::GenerateSchema { override_schema } => {
+                // Generate schema DDL if the file does not exist.
+                GenerateSchemaCommand::run(&mut codegen, *override_schema);
+            }
+        }
+    } else {
+    }
 
     // typescript::types::generate(&tables);
     // INIT CODEGEN
     // CONVERT SCHEMA DDL TO DATABASE STRUCT
-    let schema_ddl = codegen.load_schema_ddl();
-    let dialect = PostgreSqlDialect {};
-    let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
-    let database = Database::from_statements(&ast);
-    // println!("{:#?}", ast);
-    // println!("{:#?}", database);
-    // LOAD QUERIES AND PARSE THEM
-    let queries = codegen.load_queries();
-    println!("QUERIES = {:#?}", queries);
-    run_command(&database, queries);
+    // let schema_ddl = codegen.load_schema_ddl();
+    // let dialect = PostgreSqlDialect {};
+    // let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
+    // let database = Database::from_statements(&ast);
+    // // println!("{:#?}", ast);
+    // // println!("{:#?}", database);
+    // // LOAD QUERIES AND PARSE THEM
+    // let queries = codegen.load_queries();
+    // println!("QUERIES = {:#?}", queries);
+    // run_command(&database, queries);
 }
 
 #[cfg(test)]

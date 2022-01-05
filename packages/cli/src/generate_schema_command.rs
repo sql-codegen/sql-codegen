@@ -1,27 +1,11 @@
-use crate::config;
-use postgres::{Client, NoTls, Row};
+use crate::codegen::Codegen;
+use postgres::Row;
 use std::fs;
 
-pub struct DdlSchema {
-    client: Client,
-}
+pub struct GenerateSchemaCommand {}
 
-impl DdlSchema {
-    pub fn new(config: &config::Config) -> Self {
-        let params = format!(
-            "host={host} user={user} port={port} dbname={database} password={password}",
-            host = config.connection.host,
-            user = config.connection.user,
-            port = config.connection.port,
-            database = config.connection.database,
-            password = config.connection.password
-        );
-        DdlSchema {
-            client: Client::connect(&params, NoTls).expect("Could not connect to postgres"),
-        }
-    }
-
-    fn get_column_ddl(&self, row: &Row) -> String {
+impl GenerateSchemaCommand {
+    fn get_column_ddl(row: &Row) -> String {
         let column_name: &str = row.get("column_name");
         let column_type = row
             .get::<_, &str>("column_type")
@@ -50,18 +34,26 @@ impl DdlSchema {
         )
     }
 
-    fn get_create_table_opening_ddl(&mut self, table_name: &str) -> String {
+    fn get_create_table_opening_ddl(table_name: &str) -> String {
         format!("CREATE TABLE \"{table_name}\" (\n", table_name = table_name)
     }
 
-    fn get_create_table_closing_ddl(&mut self) -> &str {
-        "\n);\n"
+    fn get_create_table_closing_ddl() -> String {
+        String::from("\n);\n")
     }
 
-    pub fn generate(&mut self) -> () {
+    pub fn run(codegen: &mut Codegen, override_schema: bool) -> () {
+        let schema_file_path = codegen.get_schema_file_path();
+        if schema_file_path.exists() && !override_schema {
+            println!("Schema already exists. Use --override to override.");
+            return ();
+        }
+        let schema_dir_path = schema_file_path.parent().unwrap();
+        fs::create_dir_all(schema_dir_path).expect("Error creating directory");
+
         let mut ddl = String::from("");
 
-        let rows = self
+        let rows = codegen
             .client
             .query(TABLES_QUERY, &[])
             .expect("Could not query list of tables");
@@ -70,26 +62,29 @@ impl DdlSchema {
         for row in rows {
             let table_name = row.get::<_, &str>("table_name");
             if let None = &prev_row {
-                ddl.push_str(&self.get_create_table_opening_ddl(table_name));
+                ddl.push_str(&GenerateSchemaCommand::get_create_table_opening_ddl(
+                    table_name,
+                ));
             } else if let Some(prev_row) = &prev_row {
                 let prev_table_name = prev_row.get::<&str, String>("table_name");
                 if prev_table_name != table_name {
-                    ddl.push_str(self.get_create_table_closing_ddl());
+                    ddl.push_str(&GenerateSchemaCommand::get_create_table_closing_ddl());
                     ddl.push_str("\n");
-                    ddl.push_str(&self.get_create_table_opening_ddl(table_name));
+                    ddl.push_str(&GenerateSchemaCommand::get_create_table_opening_ddl(
+                        table_name,
+                    ));
                 } else {
                     ddl.push_str(",\n");
                 }
             }
-            ddl.push_str(&self.get_column_ddl(&row));
+            ddl.push_str(&GenerateSchemaCommand::get_column_ddl(&row));
             prev_row = Some(row);
         }
         if ddl.len() > 0 {
-            ddl.push_str(self.get_create_table_closing_ddl());
+            ddl.push_str(&GenerateSchemaCommand::get_create_table_closing_ddl());
         }
 
-        fs::create_dir_all("generated").expect("Error creating directory");
-        fs::write("generated/schema.sql", ddl).expect("Error creating schema.gql file");
+        fs::write(schema_file_path, ddl).expect("Error creating schema.gql file");
     }
 }
 

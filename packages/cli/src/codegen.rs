@@ -1,15 +1,37 @@
-use std::{env, fs};
-
 use crate::config::Config;
+use postgres::{Client, NoTls};
+use std::{env, fmt::Debug, fs, path::PathBuf};
+
+#[derive(Debug)]
+pub struct Error<'a> {
+    pub message: &'a str,
+}
+
+impl<'a> Error<'a> {
+    fn new(message: &str) -> Error {
+        Error { message }
+    }
+}
 
 #[derive()]
 pub struct Codegen<'a> {
     config: &'a Config,
+    pub client: Client,
 }
 
 impl<'a> Codegen<'a> {
-    pub fn new(config: &'a Config) -> Codegen {
-        Codegen { config }
+    pub fn new(config: &'a Config) -> Result<Codegen, Error> {
+        let params = format!(
+            "host={host} user={user} port={port} dbname={database} password={password}",
+            host = config.connection.host,
+            user = config.connection.user,
+            port = config.connection.port,
+            database = config.connection.database,
+            password = config.connection.password
+        );
+        let client = Client::connect(&params, NoTls)
+            .or_else(|_| Err(Error::new("Error connecting to database.")))?;
+        Ok(Codegen { client, config })
     }
 
     pub fn load_queries(&self) -> Vec<String> {
@@ -25,6 +47,11 @@ impl<'a> Codegen<'a> {
             .map(|query| query.to_string())
             .collect::<Vec<String>>();
         queries
+    }
+
+    pub fn get_schema_file_path(&self) -> PathBuf {
+        let current_dir = env::current_dir().unwrap();
+        current_dir.join(&self.config.schema)
     }
 
     pub fn load_schema_ddl(&self) -> String {
