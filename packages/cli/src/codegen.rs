@@ -1,17 +1,6 @@
-use crate::config::Config;
+use crate::{config::Config, error::CodegenError};
 use postgres::{Client, NoTls};
-use std::{env, fmt::Debug, fs, path::PathBuf};
-
-#[derive(Debug)]
-pub struct Error<'a> {
-    pub message: &'a str,
-}
-
-impl<'a> Error<'a> {
-    fn new(message: &str) -> Error {
-        Error { message }
-    }
-}
+use std::{env, fs, path::PathBuf};
 
 #[derive()]
 pub struct Codegen<'a> {
@@ -20,7 +9,7 @@ pub struct Codegen<'a> {
 }
 
 impl<'a> Codegen<'a> {
-    pub fn new(config: &'a Config) -> Result<Codegen, Error> {
+    pub fn new(config: &'a Config) -> Result<Codegen, CodegenError> {
         let params = format!(
             "host={host} user={user} port={port} dbname={database} password={password}",
             host = config.connection.host,
@@ -29,8 +18,7 @@ impl<'a> Codegen<'a> {
             database = config.connection.database,
             password = config.connection.password
         );
-        let client = Client::connect(&params, NoTls)
-            .or_else(|_| Err(Error::new("Error connecting to database.")))?;
+        let client = Client::connect(&params, NoTls)?;
         Ok(Codegen { client, config })
     }
 

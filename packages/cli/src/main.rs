@@ -1,6 +1,7 @@
 mod cli;
 mod codegen;
 mod config;
+mod error;
 mod generate_schema_command;
 mod plugins;
 mod projection;
@@ -65,7 +66,7 @@ fn main() {
 
     // Initialize codegen with config.
     let mut codegen = Codegen::new(&config).unwrap_or_else(|error| {
-        eprintln!("{}", error.message);
+        eprintln!("{:#?}", error);
         std::process::exit(1);
     });
 
