@@ -8,6 +8,14 @@ const COMMON_TYPES: &str = "export type Uuid = string;";
 pub struct TypeScriptPlugin {}
 
 impl TypeScriptPlugin {
+    pub fn get_type_name_for_table(table: &schema::Table) -> String {
+        table.name.to_case(Case::Pascal)
+    }
+
+    pub fn get_type_name_for_column(column: &schema::Column) -> String {
+        column.name.to_case(Case::Camel)
+    }
+
     fn sql_type_to_ts_type(sql_type: &str) -> String {
         let ts_type = match sql_type {
             sql_type if sql_type.contains("[]") => {
@@ -40,7 +48,7 @@ impl TypeScriptPlugin {
             .join("\n");
         format!(
             "export type {name} = {{\n{fields}\n}};",
-            name = table.name.to_case(Case::Pascal),
+            name = Self::get_type_name_for_table(table),
             fields = fields
         )
     }
@@ -48,7 +56,7 @@ impl TypeScriptPlugin {
     fn get_ts_code_for_column(column: &schema::Column) -> String {
         format!(
             "  {name}: {type}{or_null};",
-            name = column.name.to_case(Case::Camel),
+            name = Self::get_type_name_for_column(column),
             type = Self::sql_type_to_ts_type(&column.sql_type.to_string()),
             or_null = if column.is_not_null { "" } else { " | null" }
         )
