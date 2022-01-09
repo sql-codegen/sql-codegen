@@ -8,14 +8,10 @@ mod projection;
 mod schema;
 mod utils;
 use crate::codegen::Codegen;
-use crate::config::Config;
-use crate::plugins::TypeScriptPlugin;
 use crate::projection::Projection;
-use generate_schema_command::GenerateSchemaCommand;
 use sqlparser::ast::{Query, Select, SetExpr, Statement};
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
-use std::fs;
 
 fn process_ast(database: &schema::Database, ast: &Vec<Statement>) -> () {
     for statement in ast {
@@ -54,49 +50,16 @@ pub fn run_command(database: &schema::Database, sql_queries: Vec<String>) -> () 
 }
 
 fn main() {
-    // Collect the CLI arguments.
-    let cli = cli::Cli::new();
-
-    // Construct config struct from the CLI config argument.
-    let config = Config::new(&cli.config_file_path).unwrap_or_else(|error| {
-        eprintln!("{}", error.message);
+    // Initialize codegen with config.
+    let codegen = Codegen::new().unwrap_or_else(|error| {
+        eprintln!("{:#?}", error);
         std::process::exit(1);
     });
-    println!("{:#?}", config);
-
-    // Initialize codegen with config.
-    let mut codegen = Codegen::new(&config).unwrap_or_else(|error| {
+    codegen.run().unwrap_or_else(|error| {
         eprintln!("{:#?}", error);
         std::process::exit(1);
     });
 
-    // Run command if provided.
-    if let Some(command) = &cli.command {
-        match command {
-            cli::Command::GenerateSchema { override_schema } => {
-                // Generate schema DDL if the file does not exist.
-                GenerateSchemaCommand::run(&mut codegen, *override_schema);
-            }
-        }
-    }
-    // Generate all the files specified in the config.
-    else {
-        let database = schema::Database::from_codegen(&codegen);
-        config.generate.iter().for_each(|generate_config| {
-            let code = generate_config
-                .plugins
-                .iter()
-                .map(|plugin_config| {
-                    if plugin_config.name == "typescript" {
-                        return TypeScriptPlugin::run(&database);
-                    }
-                    String::from("")
-                })
-                .collect::<Vec<String>>()
-                .join("\n");
-            fs::write(&generate_config.output, code).expect("Error creating output file");
-        });
-    }
     // // LOAD QUERIES AND PARSE THEM
     // let queries = codegen.load_queries();
     // println!("QUERIES = {:#?}", queries);
@@ -160,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_run_command() {
-        let database = sample_database();
+        // let database = sample_database();
         // let expected = "type User = {
         //   id: string;
         //   firstName: string;
@@ -171,8 +134,8 @@ mod tests {
         // let sql_queries = vec![
         //     "SELECT true, false AS \"boolean_value\", users.id, users.*, first_name as \"name\" FROM users;",
         // ];
-        let sql_queries = vec!["SELECT * FROM users AS users2, orgs AS orgs2;"];
-        run_command(&database, sql_queries);
-        assert_eq!(true, true);
+        // let sql_queries = vec!["SELECT * FROM users AS users2, orgs AS orgs2;"];
+        // run_command(&database, sql_queries);
+        // assert_eq!(true, true);
     }
 }

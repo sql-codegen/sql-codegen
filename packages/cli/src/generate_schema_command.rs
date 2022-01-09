@@ -1,4 +1,5 @@
 use crate::codegen::Codegen;
+use crate::error;
 use postgres::Row;
 use std::fs;
 
@@ -42,22 +43,20 @@ impl GenerateSchemaCommand {
         String::from("\n);\n")
     }
 
-    pub fn run(codegen: &mut Codegen, override_schema: bool) -> () {
+    pub fn run(codegen: &Codegen, override_schema: bool) -> Result<(), error::CodegenError> {
         let schema_file_path = codegen.get_schema_file_path();
         if schema_file_path.exists() && !override_schema {
             println!("Schema already exists. Use --override to override.");
-            return ();
+            return Ok(());
         }
         let schema_dir_path = schema_file_path.parent().unwrap();
-        fs::create_dir_all(schema_dir_path).expect("Error creating directory");
+        fs::create_dir_all(schema_dir_path)?;
+
+        let mut client = codegen.connect()?;
+        let rows = client.query(TABLES_QUERY, &[])?;
+        client.close()?;
 
         let mut ddl = String::from("");
-
-        let rows = codegen
-            .client
-            .query(TABLES_QUERY, &[])
-            .expect("Could not query list of tables");
-
         let mut prev_row: Option<Row> = None;
         for row in rows {
             let table_name = row.get::<_, &str>("table_name");
@@ -84,7 +83,9 @@ impl GenerateSchemaCommand {
             ddl.push_str(&GenerateSchemaCommand::get_create_table_closing_ddl());
         }
 
-        fs::write(schema_file_path, ddl).expect("Error creating schema.gql file");
+        fs::write(schema_file_path, ddl)?;
+
+        Ok(())
     }
 }
 

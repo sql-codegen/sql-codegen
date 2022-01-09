@@ -1,9 +1,12 @@
-use crate::{codegen::Codegen, utils::object_name_to_string};
+use crate::error;
+use crate::utils;
 use sqlparser::{
     ast::{ColumnDef, DataType, Statement},
     dialect::PostgreSqlDialect,
     parser::Parser,
 };
+use std::env;
+use std::fs;
 
 #[derive(Debug)]
 pub struct Database {
@@ -22,22 +25,22 @@ impl Database {
         Database { name, tables }
     }
 
-    pub fn from_codegen(codegen: &Codegen) -> Database {
-        let schema_ddl = codegen.load_schema_ddl();
+    pub fn from_schema_file_path(
+        relative_schema_file_path: &str,
+    ) -> Result<Database, error::CodegenError> {
+        let current_dir = env::current_dir()?;
+        let absolute_schema_file_path = current_dir.join(relative_schema_file_path);
+        let schema_ddl = fs::read_to_string(absolute_schema_file_path)?;
         let dialect = PostgreSqlDialect {};
         let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
-        Database::from_statements(&ast)
-    }
-
-    pub fn from_statements(statements: &Vec<Statement>) -> Database {
-        let tables: Vec<Table> = statements
+        let tables: Vec<Table> = ast
             .iter()
             .filter_map(|statement| match statement {
                 Statement::CreateTable { .. } => Some(Table::from_statement(statement)),
                 _ => None,
             })
             .collect();
-        Database::new("public".to_string(), tables)
+        Ok(Database::new("public".to_string(), tables))
     }
 
     pub fn to_string(&self) -> String {
@@ -87,7 +90,7 @@ impl Table {
                 .iter()
                 .map(|column| Column::from_column_definition(column))
                 .collect();
-            return Table::new(object_name_to_string(name), columns);
+            return Table::new(utils::object_name_to_string(name), columns);
         }
         panic!("Expected a create table statement");
     }
