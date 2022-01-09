@@ -6,6 +6,7 @@ use std::io;
 pub enum CodegenError {
     ConfigError(config::ConfigError),
     IoError(io::Error),
+    PluginNotFoundError(String),
     PostgresError(postgres::Error),
 }
 
