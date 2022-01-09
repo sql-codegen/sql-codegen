@@ -7,6 +7,7 @@ mod plugins;
 mod projection;
 mod schema;
 mod utils;
+
 use crate::codegen::Codegen;
 use crate::projection::Projection;
 use sqlparser::ast::{Query, Select, SetExpr, Statement};

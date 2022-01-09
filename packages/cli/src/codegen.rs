@@ -1,8 +1,9 @@
 use crate::cli;
 use crate::config;
-use crate::error;
+use crate::error::CodegenError;
 use crate::generate_schema_command::GenerateSchemaCommand;
-use crate::plugins::TypeScriptPlugin;
+use crate::plugins::typescript::TypeScriptPlugin;
+use crate::plugins::Plugin;
 use crate::schema;
 use postgres::{Client, NoTls};
 use std::{env, fs, path::PathBuf};
@@ -11,10 +12,11 @@ use std::{env, fs, path::PathBuf};
 pub struct Codegen {
     pub cli: cli::Cli,
     pub config: config::Config,
+    pub plugins: Vec<Box<dyn Plugin>>,
 }
 
 impl Codegen {
-    pub fn new() -> Result<Codegen, error::CodegenError> {
+    pub fn new() -> Result<Codegen, CodegenError> {
         // Collect the CLI arguments.
         let cli = cli::Cli::new();
 
@@ -22,10 +24,14 @@ impl Codegen {
         let config = config::Config::new(&cli.config_file_path)?;
         println!("{:#?}", config);
 
-        Ok(Codegen { cli, config })
+        Ok(Codegen {
+            cli,
+            config,
+            plugins: vec![Box::new(TypeScriptPlugin::new())],
+        })
     }
 
-    pub fn connect(&self) -> Result<postgres::Client, error::CodegenError> {
+    pub fn connect(&self) -> Result<postgres::Client, CodegenError> {
         let params = format!(
             "host={host} user={user} port={port} dbname={database} password={password}",
             host = self.config.connection.host,
@@ -58,7 +64,7 @@ impl Codegen {
         current_dir.join(&self.config.schema)
     }
 
-    pub fn run(&self) -> Result<(), error::CodegenError> {
+    pub fn run(&self) -> Result<(), CodegenError> {
         // Run command if provided.
         if let Some(command) = &self.cli.command {
             match command {
@@ -72,21 +78,22 @@ impl Codegen {
         else {
             // Create database struct from the schema file.
             let database = schema::Database::from_schema_file_path(&self.config.schema)?;
-
-            self.config.generate.iter().for_each(|generate_config| {
-                let code = generate_config
-                    .plugins
-                    .iter()
-                    .map(|plugin_config| {
-                        if plugin_config.name == "typescript" {
-                            return TypeScriptPlugin::run(&database);
-                        }
-                        String::from("")
-                    })
-                    .collect::<Vec<String>>()
-                    .join("\n");
-                fs::write(&generate_config.output, code).expect("Error creating output file");
-            });
+            for generate_config in self.config.generate.iter() {
+                let mut code = String::from("");
+                for plugin_config in generate_config.plugins.iter() {
+                    let plugin = self
+                        .plugins
+                        .iter()
+                        .find(|plugin| plugin.name() == plugin_config.name);
+                    if plugin.is_none() {
+                        return Err(CodegenError::PluginNotFoundError(
+                            plugin_config.name.clone(),
+                        ));
+                    }
+                    code.push_str(&plugin.unwrap().run(&database));
+                }
+                fs::write(&generate_config.output, code)?
+            }
         }
         Ok(())
     }
