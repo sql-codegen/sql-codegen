@@ -1,10 +1,10 @@
 use super::Plugin;
-use crate::schema;
+use crate::{data, schema};
 use convert_case::{Case, Casing};
 
-const COMMON_CODE: &str = "";
+const COMMON_CODE: &str = "// TypeScript Plugin\n";
 
-const COMMON_TYPES: &str = "export type Uuid = string;";
+const COMMON_TYPES: &str = "export type Uuid = string;\n";
 
 pub struct TypeScriptPlugin {
     name: &'static str,
@@ -70,7 +70,7 @@ impl TypeScriptPlugin {
 
     fn generate(&self, tables: &Vec<schema::Table>) -> String {
         format!(
-            "{common_code}\n\n{common_types}\n\n{types}\n",
+            "{common_code}\n{common_types}\n{types}\n",
             common_code = COMMON_CODE,
             common_types = COMMON_TYPES,
             types = tables
@@ -87,7 +87,8 @@ impl Plugin for TypeScriptPlugin {
         self.name
     }
 
-    fn run(&self, database: &schema::Database) -> String {
+    fn run(&self, data: &data::Data) -> String {
+        let database = schema::Database::from_ast(&data.tables_ast);
         self.generate(&database.tables)
     }
 }

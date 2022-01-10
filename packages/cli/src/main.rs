@@ -1,6 +1,7 @@
 mod cli;
 mod codegen;
 mod config;
+mod data;
 mod error;
 mod generate_schema_command;
 mod plugins;

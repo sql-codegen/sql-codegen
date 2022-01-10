@@ -33,6 +33,10 @@ impl Database {
         let schema_ddl = fs::read_to_string(absolute_schema_file_path)?;
         let dialect = PostgreSqlDialect {};
         let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
+        Ok(Self::from_ast(&ast))
+    }
+
+    pub fn from_ast(ast: &Vec<Statement>) -> Database {
         let tables: Vec<Table> = ast
             .iter()
             .filter_map(|statement| match statement {
@@ -40,7 +44,7 @@ impl Database {
                 _ => None,
             })
             .collect();
-        Ok(Database::new("public".to_string(), tables))
+        Database::new("public".to_string(), tables)
     }
 
     pub fn to_string(&self) -> String {

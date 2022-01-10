@@ -1,11 +1,13 @@
 use crate::cli;
 use crate::config;
+use crate::data;
 use crate::error::CodegenError;
 use crate::generate_schema_command::GenerateSchemaCommand;
 use crate::plugins::typescript::TypeScriptPlugin;
+use crate::plugins::typescript_operations::TypeScriptOperationsPlugin;
 use crate::plugins::Plugin;
-use crate::schema;
 use postgres::{Client, NoTls};
+use std::vec;
 use std::{env, fs, path::PathBuf};
 
 #[derive()]
@@ -27,7 +29,10 @@ impl Codegen {
         Ok(Codegen {
             cli,
             config,
-            plugins: vec![Box::new(TypeScriptPlugin::new())],
+            plugins: vec![
+                Box::new(TypeScriptPlugin::new()),
+                Box::new(TypeScriptOperationsPlugin::new()),
+            ],
         })
     }
 
@@ -64,6 +69,11 @@ impl Codegen {
         current_dir.join(&self.config.schema)
     }
 
+    pub fn get_queries_file_path(&self) -> PathBuf {
+        let current_dir = env::current_dir().unwrap();
+        current_dir.join(&self.config.queries)
+    }
+
     pub fn run(&self) -> Result<(), CodegenError> {
         // Run command if provided.
         if let Some(command) = &self.cli.command {
@@ -76,10 +86,9 @@ impl Codegen {
         }
         // Generate all the files specified in the config.
         else {
-            // Create database struct from the schema file.
-            let database = schema::Database::from_schema_file_path(&self.config.schema)?;
+            let data = data::Data::new(self.get_schema_file_path(), self.get_queries_file_path())?;
             for generate_config in self.config.generate.iter() {
-                let mut code = String::from("");
+                let mut plugins_code: Vec<String> = vec![];
                 for plugin_config in generate_config.plugins.iter() {
                     let plugin = self
                         .plugins
@@ -90,9 +99,9 @@ impl Codegen {
                             plugin_config.name.clone(),
                         ));
                     }
-                    code.push_str(&plugin.unwrap().run(&database));
+                    plugins_code.push(plugin.unwrap().run(&data));
                 }
-                fs::write(&generate_config.output, code)?
+                fs::write(&generate_config.output, plugins_code.join("\n"))?
             }
         }
         Ok(())

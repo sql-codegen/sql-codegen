@@ -1,8 +1,9 @@
 pub mod typescript;
+pub mod typescript_operations;
 
-use crate::schema;
+use crate::data;
 
 pub trait Plugin {
     fn name(&self) -> &'static str;
-    fn run(&self, database: &schema::Database) -> String;
+    fn run(&self, data: &data::Data) -> String;
 }
