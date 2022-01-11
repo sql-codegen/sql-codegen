@@ -3,10 +3,8 @@ use crate::config;
 use crate::data;
 use crate::error::CodegenError;
 use crate::generate_schema_command::GenerateSchemaCommand;
-use crate::plugins::typescript::TypeScriptPlugin;
-use crate::plugins::typescript_operations::TypeScriptOperationsPlugin;
-use crate::plugins::Plugin;
-use postgres::{Client, NoTls};
+use crate::plugins::{Plugin, TypeScriptOperationsPlugin, TypeScriptPlugin};
+use postgres::NoTls;
 use std::vec;
 use std::{env, fs, path::PathBuf};
 

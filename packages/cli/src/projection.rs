@@ -1,4 +1,4 @@
-use crate::schema;
+use crate::data;
 use sqlparser::ast::{Expr, SelectItem, TableFactor, TableWithJoins};
 
 #[derive(Debug)]
@@ -8,7 +8,7 @@ pub struct Projection<'a> {
 
 impl<'a> Projection<'a> {
     pub fn new(
-        database: &'a schema::Database,
+        database: &'a data::Database,
         tables_with_joins: &Vec<TableWithJoins>,
     ) -> Projection<'a> {
         Projection {
@@ -114,20 +114,20 @@ impl<'a> Clone for Projection<'a> {
 
 #[derive(Debug)]
 pub struct ProjectionColumn<'a> {
-    pub database: &'a schema::Database,
+    pub database: &'a data::Database,
     pub table_name: String,
-    pub table: &'a schema::Table,
+    pub table: &'a data::Table,
     pub column_name: String,
-    pub column: &'a schema::Column,
+    pub column: &'a data::Column,
 }
 
 impl<'a> ProjectionColumn<'a> {
     pub fn new(
-        database: &'a schema::Database,
+        database: &'a data::Database,
         table_name: String,
-        table: &'a schema::Table,
+        table: &'a data::Table,
         column_name: String,
-        column: &'a schema::Column,
+        column: &'a data::Column,
     ) -> ProjectionColumn<'a> {
         ProjectionColumn {
             database,
@@ -154,12 +154,12 @@ impl<'a> Clone for ProjectionColumn<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema;
+    use crate::data;
     use sqlparser::ast::DataType;
     use sqlparser::ast::{Ident, ObjectName, TableAlias, TableFactor};
 
-    fn create_primary_id_column() -> schema::Column {
-        schema::Column::new(
+    fn create_primary_id_column() -> data::Column {
+        data::Column::new(
             "id".to_string(),
             DataType::Int(None),
             true,
@@ -169,9 +169,9 @@ mod tests {
         )
     }
 
-    fn create_users_table(alias: Option<String>) -> schema::Table {
+    fn create_users_table(alias: Option<String>) -> data::Table {
         let id_column = create_primary_id_column();
-        let name_column = schema::Column::new(
+        let name_column = data::Column::new(
             "name".to_string(),
             DataType::Varchar(Some(100)),
             false,
@@ -179,7 +179,7 @@ mod tests {
             true,
             None,
         );
-        schema::Table::new(
+        data::Table::new(
             match alias {
                 Some(alias) => alias,
                 None => "users".to_string(),
@@ -188,16 +188,16 @@ mod tests {
         )
     }
 
-    fn create_comments_table() -> schema::Table {
+    fn create_comments_table() -> data::Table {
         let id_column = create_primary_id_column();
-        schema::Table::new("comments".to_string(), vec![id_column])
+        data::Table::new("comments".to_string(), vec![id_column])
     }
 
-    fn create_public_database() -> schema::Database {
+    fn create_public_database() -> data::Database {
         let users_table = create_users_table(None);
         let comments_table = create_comments_table();
 
-        schema::Database::new("public".to_string(), vec![users_table, comments_table])
+        data::Database::new("public".to_string(), vec![users_table, comments_table])
     }
 
     fn projection_source_to_string(projection: &Projection) -> String {

@@ -6,7 +6,6 @@ mod error;
 mod generate_schema_command;
 mod plugins;
 mod projection;
-mod schema;
 mod utils;
 
 use crate::codegen::Codegen;
@@ -15,7 +14,7 @@ use sqlparser::ast::{Query, Select, SetExpr, Statement};
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
 
-fn process_ast(database: &schema::Database, ast: &Vec<Statement>) -> () {
+fn process_ast(database: &data::Database, ast: &Vec<Statement>) -> () {
     for statement in ast {
         match statement {
             Statement::Query(query) => process_query(&database, query),
@@ -24,7 +23,7 @@ fn process_ast(database: &schema::Database, ast: &Vec<Statement>) -> () {
     }
 }
 
-fn process_query(database: &schema::Database, query: &Box<Query>) -> () {
+fn process_query(database: &data::Database, query: &Box<Query>) -> () {
     match &query.body {
         SetExpr::Select(select) => process_select(&database, &select),
         _ => (),
@@ -33,7 +32,7 @@ fn process_query(database: &schema::Database, query: &Box<Query>) -> () {
     ()
 }
 
-fn process_select(database: &schema::Database, select: &Box<Select>) -> () {
+fn process_select(database: &data::Database, select: &Box<Select>) -> () {
     let projection = Projection::new(database, &select.from);
     let projection = projection.project(&select.projection);
 
@@ -42,7 +41,7 @@ fn process_select(database: &schema::Database, select: &Box<Select>) -> () {
     ()
 }
 
-pub fn run_command(database: &schema::Database, sql_queries: Vec<String>) -> () {
+pub fn run_command(database: &data::Database, sql_queries: Vec<String>) -> () {
     let dialect = PostgreSqlDialect {};
 
     let ast = Parser::parse_sql(&dialect, &sql_queries[0]).unwrap();
@@ -73,14 +72,14 @@ mod tests {
     use super::*;
     use sqlparser::ast::DataType;
 
-    fn sample_database() -> schema::Database {
-        schema::Database {
+    fn sample_database() -> data::Database {
+        data::Database {
             name: "public".to_string(),
             tables: vec![
-                schema::Table {
+                data::Table {
                     name: "users".to_string(),
                     columns: vec![
-                        schema::Column {
+                        data::Column {
                             name: "id".to_string(),
                             sql_type: DataType::Int(None),
                             is_primary_key: true,
@@ -88,7 +87,7 @@ mod tests {
                             is_not_null: true,
                             default_value: None,
                         },
-                        schema::Column {
+                        data::Column {
                             name: "first_name".to_string(),
                             sql_type: DataType::Varchar(None),
                             is_primary_key: false,
@@ -98,10 +97,10 @@ mod tests {
                         },
                     ],
                 },
-                schema::Table {
+                data::Table {
                     name: "orgs".to_string(),
                     columns: vec![
-                        schema::Column {
+                        data::Column {
                             name: "id".to_string(),
                             sql_type: DataType::Int(None),
                             is_primary_key: true,
@@ -109,7 +108,7 @@ mod tests {
                             is_not_null: true,
                             default_value: None,
                         },
-                        schema::Column {
+                        data::Column {
                             name: "name".to_string(),
                             sql_type: DataType::Varchar(None),
                             is_primary_key: false,

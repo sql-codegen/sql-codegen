@@ -1,9 +1,7 @@
-pub mod typescript;
-pub mod typescript_operations;
+mod plugin;
+mod typescript;
+mod typescript_operations;
 
-use crate::data;
-
-pub trait Plugin {
-    fn name(&self) -> &'static str;
-    fn run(&self, data: &data::Data) -> String;
-}
+pub use plugin::Plugin;
+pub use typescript::TypeScriptPlugin;
+pub use typescript_operations::TypeScriptOperationsPlugin;

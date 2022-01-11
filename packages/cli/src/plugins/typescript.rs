@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{data, schema};
+use crate::data;
 use convert_case::{Case, Casing};
 
 const COMMON_CODE: &str = "// TypeScript Plugin\n";
@@ -14,11 +14,11 @@ impl TypeScriptPlugin {
     pub fn new() -> Self {
         Self { name: "typescript" }
     }
-    pub fn get_type_name_for_table(&self, table: &schema::Table) -> String {
+    pub fn get_type_name_for_table(&self, table: &data::Table) -> String {
         table.name.to_case(Case::Pascal)
     }
 
-    pub fn get_type_name_for_column(&self, column: &schema::Column) -> String {
+    pub fn get_type_name_for_column(&self, column: &data::Column) -> String {
         column.name.to_case(Case::Camel)
     }
 
@@ -45,7 +45,7 @@ impl TypeScriptPlugin {
         ts_type
     }
 
-    fn get_ts_code_for_table(&self, table: &schema::Table) -> String {
+    fn get_ts_code_for_table(&self, table: &data::Table) -> String {
         let fields = table
             .columns
             .iter()
@@ -59,7 +59,7 @@ impl TypeScriptPlugin {
         )
     }
 
-    fn get_ts_code_for_column(&self, column: &schema::Column) -> String {
+    fn get_ts_code_for_column(&self, column: &data::Column) -> String {
         format!(
             "  {name}: {type}{or_null};",
             name = self.get_type_name_for_column(column),
@@ -68,7 +68,7 @@ impl TypeScriptPlugin {
         )
     }
 
-    fn generate(&self, tables: &Vec<schema::Table>) -> String {
+    fn generate(&self, tables: &Vec<data::Table>) -> String {
         format!(
             "{common_code}\n{common_types}\n{types}\n",
             common_code = COMMON_CODE,
@@ -88,7 +88,7 @@ impl Plugin for TypeScriptPlugin {
     }
 
     fn run(&self, data: &data::Data) -> String {
-        let database = schema::Database::from_ast(&data.tables_ast);
+        let database = data::Database::from_ast(&data.tables_ast);
         self.generate(&database.tables)
     }
 }
