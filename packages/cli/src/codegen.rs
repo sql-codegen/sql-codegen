@@ -67,9 +67,9 @@ impl Codegen {
         current_dir.join(&self.config.schema)
     }
 
-    pub fn get_queries_file_path(&self) -> PathBuf {
+    pub fn get_query_file_paths(&self) -> Vec<PathBuf> {
         let current_dir = env::current_dir().unwrap();
-        current_dir.join(&self.config.queries)
+        vec![current_dir.join(&self.config.queries)]
     }
 
     pub fn run(&self) -> Result<(), CodegenError> {
@@ -84,7 +84,9 @@ impl Codegen {
         }
         // Generate all the files specified in the config.
         else {
-            let data = data::Data::new(self.get_schema_file_path(), self.get_queries_file_path())?;
+            let schema_file_path = self.get_schema_file_path();
+            let query_file_paths = self.get_query_file_paths();
+            let data = data::Data::new(&schema_file_path, &query_file_paths)?;
             for generate_config in self.config.generate.iter() {
                 let mut plugins_code: Vec<String> = vec![];
                 for plugin_config in generate_config.plugins.iter() {

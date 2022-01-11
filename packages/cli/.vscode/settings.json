@@ -1,5 +1,13 @@
 {
-  "cSpell.words": ["Codegen", "dbname", "deps", "hstore", "sqlparser"],
+  "cSpell.words": [
+    "Codegen",
+    "dbname",
+    "ddl",
+    "ddls",
+    "deps",
+    "hstore",
+    "sqlparser"
+  ],
   "explorer.sortOrder": "mixed",
   "editor.formatOnSave": true,
   "editor.tabSize": 4

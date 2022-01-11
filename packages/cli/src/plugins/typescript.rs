@@ -88,7 +88,6 @@ impl Plugin for TypeScriptPlugin {
     }
 
     fn run(&self, data: &data::Data) -> String {
-        let database = data::Database::from_ast(&data.tables_ast);
-        self.generate(&database.tables)
+        self.generate(&data.database.tables)
     }
 }

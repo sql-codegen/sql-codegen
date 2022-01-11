@@ -18,7 +18,13 @@ impl Plugin for TypeScriptOperationsPlugin {
         self.name
     }
 
-    fn run(&self, _data: &data::Data) -> String {
-        String::from("// TypeScript Operations Plugin\n")
+    fn run(&self, data: &data::Data) -> String {
+        let names = data
+            .queries
+            .iter()
+            .map(|query| format!("// {}", query.name))
+            .collect::<Vec<String>>()
+            .join("\n\n");
+        format!("// TypeScript Operations Plugin\n\n{}", names).to_string()
     }
 }
