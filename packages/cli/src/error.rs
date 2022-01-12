@@ -1,21 +1,14 @@
-use crate::config;
 use postgres;
 use sqlparser;
 use std::io;
 
 #[derive(Debug)]
 pub enum CodegenError {
-    ConfigError(config::ConfigError),
+    ConfigError(String),
     IoError(io::Error),
     PluginNotFoundError(String),
     ParserError(sqlparser::parser::ParserError),
     PostgresError(postgres::Error),
-}
-
-impl From<config::ConfigError> for CodegenError {
-    fn from(error: config::ConfigError) -> Self {
-        CodegenError::ConfigError(error)
-    }
 }
 
 impl From<io::Error> for CodegenError {

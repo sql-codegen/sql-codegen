@@ -4,6 +4,7 @@ use crate::data;
 use crate::error::CodegenError;
 use crate::generate_schema_command::GenerateSchemaCommand;
 use crate::plugins::{Plugin, TypeScriptOperationsPlugin, TypeScriptPlugin};
+use glob::glob;
 use postgres::NoTls;
 use std::vec;
 use std::{env, fs, path::PathBuf};
@@ -67,9 +68,28 @@ impl Codegen {
         current_dir.join(&self.config.schema)
     }
 
-    pub fn get_query_file_paths(&self) -> Vec<PathBuf> {
-        let current_dir = env::current_dir().unwrap();
-        vec![current_dir.join(&self.config.queries)]
+    pub fn get_query_file_paths(&self) -> Result<Vec<PathBuf>, CodegenError> {
+        let mut query_file_paths = vec![];
+        let glob_result = glob(&self.config.queries);
+        let entries = match glob_result {
+            Ok(entries) => entries,
+            Err(_) => {
+                return Err(CodegenError::ConfigError(
+                    "Queries glob pattern error".to_string(),
+                ));
+            }
+        };
+        for entry in entries {
+            match entry {
+                Ok(path) => query_file_paths.push(path),
+                Err(_) => {
+                    return Err(CodegenError::ConfigError(
+                        "Queries glob pattern error".to_string(),
+                    ));
+                }
+            }
+        }
+        Ok(query_file_paths)
     }
 
     pub fn run(&self) -> Result<(), CodegenError> {
@@ -85,7 +105,7 @@ impl Codegen {
         // Generate all the files specified in the config.
         else {
             let schema_file_path = self.get_schema_file_path();
-            let query_file_paths = self.get_query_file_paths();
+            let query_file_paths = self.get_query_file_paths()?;
             let data = data::Data::new(&schema_file_path, &query_file_paths)?;
             for generate_config in self.config.generate.iter() {
                 let mut plugins_code: Vec<String> = vec![];

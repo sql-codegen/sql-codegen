@@ -1,4 +1,4 @@
 /target
 /generated
 sql-codegen.json
-queries.sql
+/queries
