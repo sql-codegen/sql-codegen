@@ -1,19 +1,36 @@
-use super::Plugin;
+use super::{Plugin, TypeScriptPlugin};
 use crate::data;
+use crate::projection;
 use convert_case::{Case, Casing};
+use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct TypeScriptOperationsPlugin {
     name: &'static str,
+    typescript_plugin: Rc<TypeScriptPlugin>,
 }
 
 impl TypeScriptOperationsPlugin {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(typescript_plugin: Rc<TypeScriptPlugin>) -> TypeScriptOperationsPlugin {
+        TypeScriptOperationsPlugin {
             name: "typescript-operations",
+            typescript_plugin,
         }
     }
 
-    fn get_result_type_name(&self, query: &data::Query) -> String {
+    pub fn get_field_definition_from_projection(
+        &self,
+        projection: &projection::Projection,
+    ) -> String {
+        format!(
+            "{indentation}{name}: {type},",
+            indentation = self.typescript_plugin.get_indentation(),
+            name = projection.column_name,
+            type = self.typescript_plugin.get_field_type_name_from_column(projection.column)
+        )
+    }
+
+    pub fn get_result_type_name(&self, query: &data::Query) -> String {
         let file_stem = query
             .path
             .file_stem()
@@ -23,6 +40,22 @@ impl TypeScriptOperationsPlugin {
             .to_string();
         let result_type_name = format!("{}Result", file_stem.to_case(Case::Pascal));
         result_type_name
+    }
+
+    pub fn get_type_definitions_from_query(&self, query: &data::Query) -> String {
+        let result_type_name = self.get_result_type_name(query);
+        let fields = query
+            .projections
+            .iter()
+            .map(|projection| self.get_field_definition_from_projection(projection))
+            .collect::<Vec<String>>()
+            .join("\n");
+        format!(
+            "// Types for the \"{path}\" file\nexport type {result_type_name} = {{\n{fields}\n}};",
+            path = query.path.to_str().unwrap(),
+            result_type_name = result_type_name,
+            fields = fields
+        )
     }
 }
 
@@ -35,21 +68,7 @@ impl Plugin for TypeScriptOperationsPlugin {
         let names = data
             .queries
             .iter()
-            .map(|query| {
-                let result_type_name = self.get_result_type_name(query);
-                let fields = query.projections.iter().map(|projection| {
-                    format!(
-                        "\t{name}: {type},",
-                        name = projection.column_name, type = projection.column.get_ts_type()
-                    )
-                }).collect::<Vec<String>>().join("\n");
-                format!(
-                    "// Types for the \"{path}\" file\nexport type {result_type_name} = {{\n{fields}\n}};",
-                    path = query.path.to_str().unwrap(),
-                    result_type_name = result_type_name,
-                    fields = fields
-                )
-            })
+            .map(|query| self.get_type_definitions_from_query(query))
             .collect::<Vec<String>>()
             .join("\n\n");
         format!("// TypeScript Operations Plugin\n\n{}", names)

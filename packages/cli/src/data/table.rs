@@ -33,22 +33,12 @@ impl Table {
         panic!("Expected a create table statement");
     }
 
-    pub fn to_string(&self) -> String {
-        format!(
-            "Table = {}\nColumns = {}",
-            self.name,
-            self.columns
-                .iter()
-                .map(|column| column.to_string())
-                .collect::<Vec<String>>()
-                .join(",\n")
-        )
-    }
-
+    #[allow(dead_code)]
     pub fn has_column(&self, column_name: &str) -> bool {
         self.columns.iter().any(|column| column.name == column_name)
     }
 
+    #[allow(dead_code)]
     pub fn find_column(&self, column_name: &str) -> Option<&Column> {
         self.columns
             .iter()

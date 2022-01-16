@@ -1,23 +1,6 @@
 use crate::data;
 use sqlparser::ast::{Expr, SelectItem, TableFactor, TableWithJoins};
 
-// pub fn debug(&self) -> () {
-//     println!("------------------");
-//     println!("Projection");
-//     self.columns.iter().for_each(|projection_column| {
-//         println!(
-//             "{}.{}.{} -> {}.{}.{}",
-//             projection_column.database.name,
-//             projection_column.table.name,
-//             projection_column.column.name,
-//             projection_column.database.name,
-//             projection_column.table_name,
-//             projection_column.column_name
-//         );
-//     });
-//     println!("------------------");
-// }
-
 #[derive(Debug)]
 pub struct Projection<'a> {
     pub database: &'a data::Database,
@@ -86,7 +69,7 @@ impl<'a> Projection<'a> {
                         println!("------------- CompoundIdentifier = {:?}", identifiers);
                         panic!("The CompoundIdentifier expression is not supported");
                     }
-                    Expr::Identifier(identifier) => {
+                    Expr::Identifier(_identifier) => {
                         panic!("The Identifier expression is not supported");
                         // let column_name = &identifier.value;
                         // let tables_with_identifier: Vec<schema::Table> = self

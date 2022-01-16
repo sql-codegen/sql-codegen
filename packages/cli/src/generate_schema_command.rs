@@ -16,7 +16,7 @@ impl GenerateSchemaCommand {
         let is_primary_key: bool = row.get("primary_key");
         let is_unique: bool = row.get("unique");
         let is_not_null: bool = row.get("not_null");
-        let default_value: Option<String> = row.get("default");
+        let _default_value: Option<String> = row.get("default");
 
         let mut column_options: Vec<&str> = vec![&column_type];
         if is_not_null {

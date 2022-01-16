@@ -6,6 +6,7 @@ use crate::generate_schema_command::GenerateSchemaCommand;
 use crate::plugins::{Plugin, TypeScriptOperationsPlugin, TypeScriptPlugin};
 use glob::glob;
 use postgres::NoTls;
+use std::rc::Rc;
 use std::vec;
 use std::{env, fs, path::PathBuf};
 
@@ -13,7 +14,7 @@ use std::{env, fs, path::PathBuf};
 pub struct Codegen {
     pub cli: cli::Cli,
     pub config: config::Config,
-    pub plugins: Vec<Box<dyn Plugin>>,
+    pub plugins: Vec<Rc<dyn Plugin>>,
 }
 
 impl Codegen {
@@ -25,13 +26,15 @@ impl Codegen {
         let config = config::Config::new(&cli.config_file_path)?;
         println!("{:#?}", config);
 
+        let typescript_plugin = Rc::new(TypeScriptPlugin::new());
+        let typescript_operation_plugin = Rc::new(TypeScriptOperationsPlugin::new(Rc::clone(
+            &typescript_plugin,
+        )));
+
         Ok(Codegen {
             cli,
             config,
-            plugins: vec![
-                Box::new(TypeScriptPlugin::new()),
-                Box::new(TypeScriptOperationsPlugin::new()),
-            ],
+            plugins: vec![typescript_plugin, typescript_operation_plugin],
         })
     }
 
@@ -46,21 +49,6 @@ impl Codegen {
         );
         let client = postgres::Client::connect(&params, NoTls)?;
         Ok(client)
-    }
-
-    pub fn load_queries(&self) -> Vec<String> {
-        let current_dir = env::current_dir().unwrap();
-        let queries_file_path = current_dir.join(&self.config.queries);
-        if !queries_file_path.exists() {
-            panic!("Queries file not found");
-        }
-        let content = fs::read_to_string(queries_file_path).expect("Error reading query files");
-        let queries = content
-            .split(";")
-            .filter(|query| query.len() > 0)
-            .map(|query| query.to_string())
-            .collect::<Vec<String>>();
-        queries
     }
 
     pub fn get_schema_file_path(&self) -> Result<PathBuf, CodegenError> {

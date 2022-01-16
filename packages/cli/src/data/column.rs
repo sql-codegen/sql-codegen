@@ -80,41 +80,13 @@ impl Column {
                     ColumnOption::Default { .. } => Some("DEFAULT".to_string()),
                     _ => None,
                 });
-        Column {
-            name: column_definition.name.value.clone(),
-            sql_type: column_definition.data_type.clone(),
+        Column::new(
+            column_definition.name.value.clone(),
+            column_definition.data_type.clone(),
             is_primary_key,
             is_unique,
             is_not_null,
             default_value,
-        }
-    }
-
-    pub fn get_ts_type(&self) -> String {
-        let sql_type = self.sql_type.to_string().replace("[]", "");
-        let ts_type = match sql_type.as_str() {
-            "BOOLEAN" => "boolean".to_string(),
-            "BIGINT" => "BigInt".to_string(),
-            "HSTORE" => "Record<string, unknown>".to_string(),
-            "TEXT" => "string".to_string(),
-            "UUID" => "Uuid".to_string(),
-            sql_type if sql_type.contains("CHAR") => "string".to_string(),
-            sql_type if sql_type.contains("DOUBLE") => "number".to_string(),
-            sql_type if sql_type.contains("ENUM") => "unknown".to_string(),
-            sql_type if sql_type.contains("INT") => "number".to_string(),
-            sql_type if sql_type.contains("JSON") => "Record<string, unknown>".to_string(),
-            sql_type if sql_type.contains("REAL") => "number".to_string(),
-            sql_type if sql_type.contains("TIMESTAMP") => "Date".to_string(),
-            _ => sql_type.to_string(),
-        };
-        format!(
-            "{ts_type}{or_null}",
-            ts_type = ts_type,
-            or_null = if self.is_not_null { "" } else { " | null" }
         )
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("Column = {}", self.name)
     }
 }

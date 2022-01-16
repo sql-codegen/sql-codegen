@@ -41,18 +41,7 @@ impl Database {
         Database::new("public".to_string(), tables)
     }
 
-    pub fn to_string(&self) -> String {
-        format!(
-            "Database = {}\nTables = {}",
-            self.name,
-            self.tables
-                .iter()
-                .map(|table| table.to_string())
-                .collect::<Vec<String>>()
-                .join(",\n")
-        )
-    }
-
+    #[allow(dead_code)]
     pub fn has_table(&self, table_name: &str) -> bool {
         self.tables.iter().any(|table| table.name == table_name)
     }
