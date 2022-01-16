@@ -44,7 +44,7 @@ impl GenerateSchemaCommand {
     }
 
     pub fn run(codegen: &Codegen, override_schema: bool) -> Result<(), error::CodegenError> {
-        let schema_file_path = codegen.get_schema_file_path();
+        let schema_file_path = codegen.get_schema_file_path()?;
         if schema_file_path.exists() && !override_schema {
             println!("Schema already exists. Use --override to override.");
             return Ok(());

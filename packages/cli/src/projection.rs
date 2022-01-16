@@ -1,50 +1,84 @@
 use crate::data;
 use sqlparser::ast::{Expr, SelectItem, TableFactor, TableWithJoins};
 
+// pub fn debug(&self) -> () {
+//     println!("------------------");
+//     println!("Projection");
+//     self.columns.iter().for_each(|projection_column| {
+//         println!(
+//             "{}.{}.{} -> {}.{}.{}",
+//             projection_column.database.name,
+//             projection_column.table.name,
+//             projection_column.column.name,
+//             projection_column.database.name,
+//             projection_column.table_name,
+//             projection_column.column_name
+//         );
+//     });
+//     println!("------------------");
+// }
+
 #[derive(Debug)]
 pub struct Projection<'a> {
-    pub columns: Vec<ProjectionColumn<'a>>,
+    pub database: &'a data::Database,
+    pub table_name: String,
+    pub table: &'a data::Table,
+    pub column_name: String,
+    pub column: &'a data::Column,
 }
 
 impl<'a> Projection<'a> {
     pub fn new(
         database: &'a data::Database,
-        tables_with_joins: &Vec<TableWithJoins>,
+        table_name: String,
+        table: &'a data::Table,
+        column_name: String,
+        column: &'a data::Column,
     ) -> Projection<'a> {
         Projection {
-            columns: tables_with_joins
-                .iter()
-                .map(|table_with_joins| match &table_with_joins.relation {
-                    TableFactor::Table { name, alias, .. } => {
-                        match database.find_table(&name.to_string()) {
-                            Some(table) => table
-                                .columns
-                                .iter()
-                                .map(|column| {
-                                    ProjectionColumn::new(
-                                        database,
-                                        match alias {
-                                            Some(alias) => alias.name.to_string(),
-                                            None => name.to_string(),
-                                        },
-                                        table,
-                                        column.name.clone(),
-                                        column,
-                                    )
-                                })
-                                .collect(),
-                            None => panic!("Table \"{}\" not found", name),
-                        }
-                    }
-                    _ => vec![],
-                })
-                .flatten()
-                .collect(),
+            database,
+            table_name,
+            table,
+            column_name,
+            column,
         }
     }
 
-    pub fn project(&'a self, select_items: &Vec<SelectItem>) -> Projection<'a> {
-        let projection_columns: Vec<ProjectionColumn> = select_items
+    pub fn from(
+        database: &'a data::Database,
+        tables_with_joins: &Vec<TableWithJoins>,
+        select_items: &Vec<SelectItem>,
+    ) -> Vec<Projection<'a>> {
+        let projections = tables_with_joins
+            .iter()
+            .map(|table_with_joins| match &table_with_joins.relation {
+                TableFactor::Table { name, alias, .. } => {
+                    match database.find_table(&name.to_string()) {
+                        Some(table) => table
+                            .columns
+                            .iter()
+                            .map(|column| {
+                                Projection::new(
+                                    database,
+                                    match alias {
+                                        Some(alias) => alias.name.to_string(),
+                                        None => name.to_string(),
+                                    },
+                                    table,
+                                    column.name.clone(),
+                                    column,
+                                )
+                            })
+                            .collect(),
+                        None => panic!("Table \"{}\" not found", name),
+                    }
+                }
+                _ => vec![],
+            })
+            .flatten()
+            .collect::<Vec<Projection>>();
+
+        let projections = select_items
             .iter()
             .map(|select_item| match select_item {
                 SelectItem::UnnamedExpr(expr) => match expr {
@@ -73,75 +107,18 @@ impl<'a> Projection<'a> {
                 },
                 SelectItem::ExprWithAlias { .. } => panic!("Not supported expression"),
                 SelectItem::QualifiedWildcard(..) => panic!("Not supported expression"),
-                SelectItem::Wildcard => self.columns.clone(),
+                SelectItem::Wildcard => projections.clone(),
             })
             .flatten()
-            .collect();
-        Projection {
-            columns: projection_columns,
-        }
-    }
+            .collect::<Vec<Projection>>();
 
-    pub fn size(&self) -> usize {
-        self.columns.len()
-    }
-
-    pub fn debug(&self) -> () {
-        println!("------------------");
-        println!("Projection");
-        self.columns.iter().for_each(|projection_column| {
-            println!(
-                "{}.{}.{} -> {}.{}.{}",
-                projection_column.database.name,
-                projection_column.table.name,
-                projection_column.column.name,
-                projection_column.database.name,
-                projection_column.table_name,
-                projection_column.column_name
-            );
-        });
-        println!("------------------");
+        projections
     }
 }
 
 impl<'a> Clone for Projection<'a> {
     fn clone(&self) -> Projection<'a> {
         Projection {
-            columns: self.columns.clone(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ProjectionColumn<'a> {
-    pub database: &'a data::Database,
-    pub table_name: String,
-    pub table: &'a data::Table,
-    pub column_name: String,
-    pub column: &'a data::Column,
-}
-
-impl<'a> ProjectionColumn<'a> {
-    pub fn new(
-        database: &'a data::Database,
-        table_name: String,
-        table: &'a data::Table,
-        column_name: String,
-        column: &'a data::Column,
-    ) -> ProjectionColumn<'a> {
-        ProjectionColumn {
-            database,
-            table_name,
-            table,
-            column_name,
-            column,
-        }
-    }
-}
-
-impl<'a> Clone for ProjectionColumn<'a> {
-    fn clone(&self) -> ProjectionColumn<'a> {
-        ProjectionColumn {
             database: self.database,
             table_name: self.table_name.clone(),
             table: self.table,
@@ -200,9 +177,8 @@ mod tests {
         data::Database::new("public".to_string(), vec![users_table, comments_table])
     }
 
-    fn projection_source_to_string(projection: &Projection) -> String {
-        projection
-            .columns
+    fn projection_source_to_string(projections: &Vec<Projection>) -> String {
+        projections
             .iter()
             .map(|projection| {
                 format!(
@@ -214,9 +190,8 @@ mod tests {
             .join(",")
     }
 
-    fn projection_target_to_string(projection: &Projection) -> String {
-        projection
-            .columns
+    fn projection_target_to_string(projections: &Vec<Projection>) -> String {
+        projections
             .iter()
             .map(|projection| {
                 format!(
@@ -245,15 +220,17 @@ mod tests {
             joins: vec![],
         }];
 
-        let projection = Projection::new(&public_database, &from_users);
+        let select_items = vec![SelectItem::Wildcard];
 
-        assert_eq!(projection.size(), 2);
+        let projections = Projection::from(&public_database, &from_users, &select_items);
+
+        assert_eq!(projections.len(), 2);
         assert_eq!(
-            projection_source_to_string(&projection),
+            projection_source_to_string(&projections),
             "public.users.id,public.users.name"
         );
         assert_eq!(
-            projection_target_to_string(&projection),
+            projection_target_to_string(&projections),
             "public.users.id,public.users.name"
         );
     }
@@ -281,15 +258,17 @@ mod tests {
             joins: vec![],
         }];
 
-        let projection = Projection::new(&public_database, &from_aliased_users);
+        let select_items = vec![SelectItem::Wildcard];
 
-        assert_eq!(projection.size(), 2);
+        let projections = Projection::from(&public_database, &from_aliased_users, &select_items);
+
+        assert_eq!(projections.len(), 2);
         assert_eq!(
-            projection_source_to_string(&projection),
+            projection_source_to_string(&projections),
             "public.users.id,public.users.name"
         );
         assert_eq!(
-            projection_target_to_string(&projection),
+            projection_target_to_string(&projections),
             "public.alias.id,public.alias.name"
         );
     }

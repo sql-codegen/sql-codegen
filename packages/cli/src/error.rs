@@ -9,6 +9,7 @@ pub enum CodegenError {
     PluginNotFoundError(String),
     ParserError(sqlparser::parser::ParserError),
     PostgresError(postgres::Error),
+    QueryError(String),
 }
 
 impl From<io::Error> for CodegenError {

@@ -63,9 +63,9 @@ impl Codegen {
         queries
     }
 
-    pub fn get_schema_file_path(&self) -> PathBuf {
-        let current_dir = env::current_dir().unwrap();
-        current_dir.join(&self.config.schema)
+    pub fn get_schema_file_path(&self) -> Result<PathBuf, CodegenError> {
+        let current_dir = env::current_dir()?;
+        Ok(current_dir.join(&self.config.schema))
     }
 
     pub fn get_query_file_paths(&self) -> Result<Vec<PathBuf>, CodegenError> {
@@ -104,9 +104,12 @@ impl Codegen {
         }
         // Generate all the files specified in the config.
         else {
-            let schema_file_path = self.get_schema_file_path();
-            let query_file_paths = self.get_query_file_paths()?;
-            let data = data::Data::new(&schema_file_path, &query_file_paths)?;
+            // Generate data to be shared between plugins, to generate types.
+            let database = data::Database::from_schema_file_path(self.get_schema_file_path()?)?;
+            let queries =
+                data::Query::from_query_file_paths(&database, self.get_query_file_paths()?)?;
+            let data = data::Data::new(&database, &queries);
+
             for generate_config in self.config.generate.iter() {
                 let mut plugins_code: Vec<String> = vec![];
                 for plugin_config in generate_config.plugins.iter() {

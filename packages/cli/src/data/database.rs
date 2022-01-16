@@ -1,8 +1,8 @@
 use super::table::Table;
 use crate::error;
 use sqlparser::{ast::Statement, dialect::PostgreSqlDialect, parser::Parser};
-use std::env;
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Database {
@@ -22,17 +22,15 @@ impl Database {
     }
 
     pub fn from_schema_file_path(
-        relative_schema_file_path: &str,
+        schema_file_path: PathBuf,
     ) -> Result<Database, error::CodegenError> {
-        let current_dir = env::current_dir()?;
-        let absolute_schema_file_path = current_dir.join(relative_schema_file_path);
-        let schema_ddl = fs::read_to_string(absolute_schema_file_path)?;
         let dialect = PostgreSqlDialect {};
-        let ast = Parser::parse_sql(&dialect, &schema_ddl).unwrap();
-        Ok(Self::from_ast(&ast))
+        let schema_ddl = fs::read_to_string(schema_file_path)?;
+        let schema_ast = Parser::parse_sql(&dialect, &schema_ddl)?;
+        Ok(Database::from_ast(&schema_ast))
     }
 
-    pub fn from_ast(ast: &Vec<Statement>) -> Database {
+    fn from_ast(ast: &Vec<Statement>) -> Database {
         let tables: Vec<Table> = ast
             .iter()
             .filter_map(|statement| match statement {

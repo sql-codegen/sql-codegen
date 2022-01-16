@@ -7,48 +7,9 @@ mod generate_schema_command;
 mod plugins;
 mod projection;
 mod utils;
+mod x;
 
 use crate::codegen::Codegen;
-use crate::projection::Projection;
-use sqlparser::ast::{Query, Select, SetExpr, Statement};
-use sqlparser::dialect::PostgreSqlDialect;
-use sqlparser::parser::Parser;
-
-fn process_ast(database: &data::Database, ast: &Vec<Statement>) -> () {
-    for statement in ast {
-        match statement {
-            Statement::Query(query) => process_query(&database, query),
-            _ => (),
-        };
-    }
-}
-
-fn process_query(database: &data::Database, query: &Box<Query>) -> () {
-    match &query.body {
-        SetExpr::Select(select) => process_select(&database, &select),
-        _ => (),
-    };
-
-    ()
-}
-
-fn process_select(database: &data::Database, select: &Box<Select>) -> () {
-    let projection = Projection::new(database, &select.from);
-    let projection = projection.project(&select.projection);
-
-    projection.debug();
-
-    ()
-}
-
-pub fn run_command(database: &data::Database, sql_queries: Vec<String>) -> () {
-    let dialect = PostgreSqlDialect {};
-
-    let ast = Parser::parse_sql(&dialect, &sql_queries[0]).unwrap();
-    process_ast(&database, &ast);
-
-    ()
-}
 
 fn main() {
     // Initialize codegen with config.
