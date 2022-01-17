@@ -2,16 +2,15 @@ use super::{Plugin, TypeScriptPlugin};
 use crate::data;
 use crate::projection;
 use convert_case::{Case, Casing};
-use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct TypeScriptOperationsPlugin {
+pub struct TypeScriptOperationsPlugin<'a> {
     name: &'static str,
-    typescript_plugin: Rc<TypeScriptPlugin>,
+    typescript_plugin: &'a TypeScriptPlugin,
 }
 
-impl TypeScriptOperationsPlugin {
-    pub fn new(typescript_plugin: Rc<TypeScriptPlugin>) -> TypeScriptOperationsPlugin {
+impl<'a> TypeScriptOperationsPlugin<'a> {
+    pub fn new(typescript_plugin: &TypeScriptPlugin) -> TypeScriptOperationsPlugin {
         TypeScriptOperationsPlugin {
             name: "typescript-operations",
             typescript_plugin,
@@ -59,7 +58,7 @@ impl TypeScriptOperationsPlugin {
     }
 }
 
-impl Plugin for TypeScriptOperationsPlugin {
+impl<'a> Plugin for TypeScriptOperationsPlugin<'a> {
     fn name(&self) -> &'static str {
         self.name
     }

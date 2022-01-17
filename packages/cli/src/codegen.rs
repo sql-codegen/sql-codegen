@@ -6,7 +6,6 @@ use crate::generate_schema_command::GenerateSchemaCommand;
 use crate::plugins::{Plugin, TypeScriptOperationsPlugin, TypeScriptPlugin};
 use glob::glob;
 use postgres::NoTls;
-use std::rc::Rc;
 use std::vec;
 use std::{env, fs, path::PathBuf};
 
@@ -14,7 +13,6 @@ use std::{env, fs, path::PathBuf};
 pub struct Codegen {
     pub cli: cli::Cli,
     pub config: config::Config,
-    pub plugins: Vec<Rc<dyn Plugin>>,
 }
 
 impl Codegen {
@@ -26,16 +24,7 @@ impl Codegen {
         let config = config::Config::new(&cli.config_file_path)?;
         println!("{:#?}", config);
 
-        let typescript_plugin = Rc::new(TypeScriptPlugin::new());
-        let typescript_operation_plugin = Rc::new(TypeScriptOperationsPlugin::new(Rc::clone(
-            &typescript_plugin,
-        )));
-
-        Ok(Codegen {
-            cli,
-            config,
-            plugins: vec![typescript_plugin, typescript_operation_plugin],
-        })
+        Ok(Codegen { cli, config })
     }
 
     pub fn connect(&self) -> Result<postgres::Client, CodegenError> {
@@ -98,11 +87,15 @@ impl Codegen {
                 data::Query::from_query_file_paths(&database, self.get_query_file_paths()?)?;
             let data = data::Data::new(&database, &queries);
 
+            // Initialize plugins.
+            let typescript_plugin = TypeScriptPlugin::new();
+            let typescript_operation_plugin = TypeScriptOperationsPlugin::new(&typescript_plugin);
+            let plugins: Vec<&dyn Plugin> = vec![&typescript_plugin, &typescript_operation_plugin];
+
             for generate_config in self.config.generate.iter() {
                 let mut plugins_code: Vec<String> = vec![];
                 for plugin_config in generate_config.plugins.iter() {
-                    let plugin = self
-                        .plugins
+                    let plugin = plugins
                         .iter()
                         .find(|plugin| plugin.name() == plugin_config.name);
                     if plugin.is_none() {
