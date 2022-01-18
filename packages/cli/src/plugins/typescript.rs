@@ -47,7 +47,7 @@ impl TypeScriptPlugin {
     }
 
     pub fn get_field_name_from_column(&self, column: &data::Column) -> String {
-        column.name.to_case(Case::Camel)
+        column.name.clone()
     }
 
     fn get_type_definition_from_table(&self, table: &data::Table) -> String {
