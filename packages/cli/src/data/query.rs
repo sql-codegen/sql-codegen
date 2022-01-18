@@ -8,13 +8,18 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Query<'a> {
+    pub ddl: String,
     pub path: PathBuf,
     pub projections: Vec<Projection<'a>>,
 }
 
 impl<'a> Query<'a> {
-    pub fn new(path: PathBuf, projections: Vec<Projection>) -> Query {
-        Query { path, projections }
+    pub fn new(path: PathBuf, ddl: String, projections: Vec<Projection>) -> Query {
+        Query {
+            ddl,
+            path,
+            projections,
+        }
     }
 
     pub fn from_query_file_paths(
@@ -26,7 +31,12 @@ impl<'a> Query<'a> {
         for query_file_path in query_file_paths {
             let query_ddl = fs::read_to_string(&query_file_path)?;
             let query_ast = Parser::parse_sql(&dialect, &query_ddl)?;
-            queries.push(Query::from_ast(database, query_file_path, &query_ast)?);
+            queries.push(Query::from_ast(
+                database,
+                query_file_path,
+                query_ddl,
+                &query_ast,
+            )?);
         }
         Ok(queries)
     }
@@ -34,13 +44,14 @@ impl<'a> Query<'a> {
     fn from_ast(
         database: &'a data::Database,
         path: PathBuf,
+        ddl: String,
         ast: &Vec<Statement>,
     ) -> Result<Query<'a>, CodegenError> {
         for statement in ast {
             if let Statement::Query(query) = statement {
                 if let SetExpr::Select(select) = &query.body {
                     let projections = Projection::from(database, &select.from, &select.projection);
-                    return Ok(Query::new(path, projections));
+                    return Ok(Query::new(path, ddl, projections));
                 }
             }
         }
