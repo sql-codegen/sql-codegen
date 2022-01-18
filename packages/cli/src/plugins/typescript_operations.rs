@@ -92,8 +92,7 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
 
     pub fn get_type_definitions(&self, query: &data::Query) -> String {
         format!(
-            "// Types for the \"{path}\" file\n{result_type_definition}\n{variables_type_definition}\n{ddl_variable}",
-            path = query.path.to_str().unwrap(),
+            "{result_type_definition}\n\n{variables_type_definition}\n\n{ddl_variable}\n",
             result_type_definition = self.get_result_type_definition(query),
             variables_type_definition = self.get_variables_type_definition(query),
             ddl_variable = self.get_ddl_variable(query)
@@ -112,10 +111,7 @@ impl<'a> Plugin for TypeScriptOperationsPlugin<'a> {
             .iter()
             .map(|query| self.get_type_definitions(query))
             .collect::<Vec<String>>()
-            .join("\n\n");
-        format!(
-            "// TypeScript Operations Plugin\n\n{type_definitions}",
-            type_definitions = type_definitions
-        )
+            .join("\n");
+        format!("{type_definitions}", type_definitions = type_definitions)
     }
 }

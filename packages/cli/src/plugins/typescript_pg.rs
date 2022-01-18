@@ -29,6 +29,6 @@ impl<'a> Plugin for TypeScriptPgPlugin<'a> {
     }
 
     fn run(&self, _data: &data::Data) -> String {
-        format!("// TypeScript Pg Plugin\n\nimport type {{ Client }} from \"pg\";\n\nexport const getPgSdk = (client: Client) => getSdk(async (query, variables) => (await client.query(query, variables as any)).rows as any);")
+        format!("import type {{ Client }} from \"pg\";\n\nexport const getPgSdk = (client: Client) => getSdk(async (query, variables) => (await client.query(query, variables as any)).rows as any);\n")
     }
 }

@@ -21,6 +21,9 @@ impl<'a> TypeScriptGenericSdkPlugin<'a> {
             typescript_operation_plugin,
         }
     }
+    fn get_requested_definition(&self) -> String {
+        format!("export type Requester = <R, V>(query: string, variables?: V) => Promise<R>;\n")
+    }
 
     fn get_function_name_from_query(&self, query: &data::Query) -> String {
         query
@@ -58,7 +61,8 @@ impl<'a> Plugin for TypeScriptGenericSdkPlugin<'a> {
             .collect::<Vec<String>>()
             .join("\n");
         format!(
-            "// TypeScript Generic SDK Plugin\n\nexport type Requester = <R, V>(query: string, variables?: V) => Promise<R>;\nexport const getSdk = (requester: Requester) => {{\n{indentation}return {{\n{functions}\n{indentation}}};\n}};\n",
+            "{requested_definition}\nexport const getSdk = (requester: Requester) => {{\n{indentation}return {{\n{functions}\n{indentation}}};\n}};\n",
+            requested_definition = self.get_requested_definition(),
             indentation = self.typescript_plugin.get_indentation(),
             functions = functions
         )

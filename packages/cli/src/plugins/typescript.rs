@@ -2,7 +2,6 @@ use super::Plugin;
 use crate::data;
 use convert_case::{Case, Casing};
 
-const COMMON_CODE: &str = "// TypeScript Plugin\n";
 const COMMON_TYPES: &str = "export type Uuid = string;\n";
 
 #[derive(Debug)]
@@ -76,8 +75,7 @@ impl TypeScriptPlugin {
 
     fn generate(&self, tables: &Vec<data::Table>) -> String {
         format!(
-            "{common_code}\n{common_types}\n{types}\n",
-            common_code = COMMON_CODE,
+            "{common_types}\n{types}\n",
             common_types = COMMON_TYPES,
             types = tables
                 .iter()
