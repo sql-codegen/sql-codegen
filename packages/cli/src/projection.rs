@@ -1,5 +1,5 @@
 use crate::data;
-use sqlparser::ast::{Expr, SelectItem, TableFactor, TableWithJoins};
+use sqlparser::ast::{Expr, Ident, SelectItem, TableFactor, TableWithJoins};
 
 #[derive(Debug)]
 pub struct Projection<'a> {
@@ -25,6 +25,60 @@ impl<'a> Projection<'a> {
             column_name,
             column,
         }
+    }
+
+    fn filter_by_compound_identifier(
+        projections: &Vec<Projection<'a>>,
+        identifiers: &Vec<Ident>,
+    ) -> Vec<Projection<'a>> {
+        if identifiers.len() != 2 {
+            let compound_identifier = identifiers
+                .iter()
+                .map(|identifier| identifier.value.clone())
+                .collect::<Vec<String>>()
+                .join(".");
+            panic!(
+                "The \"{compound_identifier}\" compound identifier expression is not supported",
+                compound_identifier = compound_identifier
+            );
+        }
+        let table_name = identifiers[0].value.clone();
+        let column_name = identifiers[1].value.clone();
+        let filtered_projections = projections
+            .iter()
+            .cloned()
+            .filter(|projection| {
+                projection.table.name == table_name && projection.column.name == column_name
+            })
+            .collect::<Vec<Projection>>();
+        if filtered_projections.len() == 0 {
+            panic!("Column \"{}.{}\" does not exist", table_name, column_name);
+        }
+        if filtered_projections.len() > 1 {
+            panic!(
+                "Column reference \"{}.{}\" is ambiguous",
+                table_name, column_name
+            );
+        }
+        filtered_projections
+    }
+
+    fn filter_by_identifier(
+        projections: &Vec<Projection<'a>>,
+        identifier: &Ident,
+    ) -> Vec<Projection<'a>> {
+        let filtered_projections = projections
+            .iter()
+            .cloned()
+            .filter(|projection| projection.column.name == identifier.value)
+            .collect::<Vec<Projection>>();
+        if filtered_projections.len() == 0 {
+            panic!("Column \"{}\" does not exist", identifier.value);
+        }
+        if filtered_projections.len() > 1 {
+            panic!("Column reference \"{}\" is ambiguous", identifier.value);
+        }
+        filtered_projections
     }
 
     pub fn from(
@@ -66,25 +120,10 @@ impl<'a> Projection<'a> {
             .map(|select_item| match select_item {
                 SelectItem::UnnamedExpr(expr) => match expr {
                     Expr::CompoundIdentifier(identifiers) => {
-                        println!("------------- CompoundIdentifier = {:?}", identifiers);
-                        panic!("The CompoundIdentifier expression is not supported");
+                        Projection::filter_by_compound_identifier(&projections, identifiers)
                     }
-                    Expr::Identifier(_identifier) => {
-                        panic!("The Identifier expression is not supported");
-                        // let column_name = &identifier.value;
-                        // let tables_with_identifier: Vec<schema::Table> = self
-                        //     .tables
-                        //     .iter()
-                        //     .filter(|table| table.has_column(column_name))
-                        //     .map(|table| {
-                        //         let column = table.find_column(column_name).unwrap().clone();
-                        //         schema::Table::new(table.name.clone(), vec![column])
-                        //     })
-                        //     .collect();
-                        // if tables_with_identifier.len() > 1 {
-                        //     panic!("The identifier \"{}\" is ambiguous", identifier.value);
-                        // }
-                        // tables_with_identifier
+                    Expr::Identifier(identifier) => {
+                        Projection::filter_by_identifier(&projections, identifier)
                     }
                     _ => panic!("Not supported expression"),
                 },
