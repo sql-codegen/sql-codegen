@@ -1,3 +1,4 @@
+use super::PluginResult;
 use super::{Plugin, TypeScriptPlugin};
 use crate::data;
 use crate::projection;
@@ -19,10 +20,9 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
 
     pub fn get_field_definition(&self, projection: &projection::Projection) -> String {
         format!(
-            "{indentation}{name}: {type},",
-            indentation = self.typescript_plugin.get_indentation(),
+            "\t{name}: {type},",
             name = projection.column_name,
-            type = self.typescript_plugin.get_field_type_name_from_column(projection.column)
+            type = self.typescript_plugin.get_column_field_type_name(projection.column)
         )
     }
 
@@ -36,14 +36,14 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
             .to_string()
     }
 
-    pub fn get_result_type_name(&self, query: &data::Query) -> String {
+    pub fn get_query_result_type_name(&self, query: &data::Query) -> String {
         let file_stem = self.get_file_stem(query);
         let result_type_name = format!("{}QueryResult", file_stem.to_case(Case::Pascal));
         result_type_name
     }
 
-    pub fn get_result_type_definition(&self, query: &data::Query) -> String {
-        let result_type_name = self.get_result_type_name(query);
+    pub fn get_query_result_type_definition(&self, query: &data::Query) -> String {
+        let result_type_name = self.get_query_result_type_name(query);
         let fields = query
             .projections
             .iter()
@@ -90,13 +90,20 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
         )
     }
 
-    pub fn get_type_definitions(&self, query: &data::Query) -> String {
-        format!(
-            "{result_type_definition}\n\n{variables_type_definition}\n\n{ddl_variable}\n",
-            result_type_definition = self.get_result_type_definition(query),
-            variables_type_definition = self.get_variables_type_definition(query),
-            ddl_variable = self.get_ddl_variable(query)
-        )
+    pub fn get_type_definitions(&self, query: &data::Query) -> Vec<String> {
+        vec![
+            self.get_query_result_type_definition(query),
+            self.get_variables_type_definition(query),
+            self.get_ddl_variable(query),
+        ]
+    }
+
+    pub fn get_codes(&self, data: &data::Data) -> Vec<String> {
+        data.queries
+            .iter()
+            .map(|query| self.get_type_definitions(query))
+            .flatten()
+            .collect::<Vec<String>>()
     }
 }
 
@@ -105,13 +112,7 @@ impl<'a> Plugin for TypeScriptOperationsPlugin<'a> {
         self.name
     }
 
-    fn run(&self, data: &data::Data) -> String {
-        let type_definitions = data
-            .queries
-            .iter()
-            .map(|query| self.get_type_definitions(query))
-            .collect::<Vec<String>>()
-            .join("\n");
-        format!("{type_definitions}", type_definitions = type_definitions)
+    fn run(&self, data: &data::Data) -> PluginResult {
+        PluginResult::from(self.get_codes(data), vec![], vec![])
     }
 }

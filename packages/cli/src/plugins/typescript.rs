@@ -1,8 +1,6 @@
-use super::Plugin;
+use super::{Plugin, PluginResult};
 use crate::data;
 use convert_case::{Case, Casing};
-
-const COMMON_TYPES: &str = "export type Uuid = string;\n";
 
 #[derive(Debug)]
 pub struct TypeScriptPlugin {
@@ -14,29 +12,25 @@ impl TypeScriptPlugin {
         TypeScriptPlugin { name: "typescript" }
     }
 
-    pub fn get_indentation(&self) -> String {
-        String::from("\t")
-    }
-
-    pub fn get_type_name_from_table(&self, table: &data::Table) -> String {
+    pub fn get_table_type_name(&self, table: &data::Table) -> String {
         table.name.to_case(Case::Pascal)
     }
 
-    pub fn get_field_type_name_from_column(&self, column: &data::Column) -> String {
+    pub fn get_column_field_type_name(&self, column: &data::Column) -> String {
         let sql_type = column.sql_type.to_string().replace("[]", "");
         let ts_type = match sql_type.as_str() {
-            "BOOLEAN" => "boolean".to_string(),
-            "BIGINT" => "BigInt".to_string(),
-            "HSTORE" => "Record<string, unknown>".to_string(),
-            "TEXT" => "string".to_string(),
-            "UUID" => "Uuid".to_string(),
-            sql_type if sql_type.contains("CHAR") => "string".to_string(),
-            sql_type if sql_type.contains("DOUBLE") => "number".to_string(),
+            "BOOLEAN" => "Scalars[\"Boolean\"]".to_string(),
+            "BIGINT" => "Scalars[\"BigInt\"]".to_string(),
+            "HSTORE" => "Scalars[\"Hstore\"]".to_string(),
+            "TEXT" => "Scalars[\"Text\"]".to_string(),
+            "UUID" => "Scalars[\"Uuid\"]".to_string(),
+            sql_type if sql_type.contains("CHAR") => "Scalars[\"Char\"]".to_string(),
+            sql_type if sql_type.contains("DOUBLE") => "Scalars[\"Double\"]".to_string(),
             sql_type if sql_type.contains("ENUM") => "unknown".to_string(),
-            sql_type if sql_type.contains("INT") => "number".to_string(),
-            sql_type if sql_type.contains("JSON") => "Record<string, unknown>".to_string(),
-            sql_type if sql_type.contains("REAL") => "number".to_string(),
-            sql_type if sql_type.contains("TIMESTAMP") => "Date".to_string(),
+            sql_type if sql_type.contains("INT") => "Scalars[\"Int\"]".to_string(),
+            sql_type if sql_type.contains("JSON") => "Scalars[\"Json\"]".to_string(),
+            sql_type if sql_type.contains("REAL") => "Scalars[\"Real\"]".to_string(),
+            sql_type if sql_type.contains("TIMESTAMP") => "Scalars[\"Timestamp\"]".to_string(),
             _ => sql_type.to_string(),
         };
         format!(
@@ -46,43 +40,53 @@ impl TypeScriptPlugin {
         )
     }
 
-    pub fn get_field_name_from_column(&self, column: &data::Column) -> String {
+    pub fn get_column_field_name(&self, column: &data::Column) -> String {
         column.name.clone()
     }
 
-    fn get_type_definition_from_table(&self, table: &data::Table) -> String {
+    fn get_table_type_definition(&self, table: &data::Table) -> String {
         let fields = table
             .columns
             .iter()
-            .map(|column| self.get_field_definition_from_column(column))
+            .map(|column| self.get_column_field_definition(column))
             .collect::<Vec<String>>()
             .join("\n");
         format!(
             "export type {name} = {{\n{fields}\n}};",
-            name = self.get_type_name_from_table(table),
+            name = self.get_table_type_name(table),
             fields = fields
         )
     }
 
-    fn get_field_definition_from_column(&self, column: &data::Column) -> String {
+    fn get_column_field_definition(&self, column: &data::Column) -> String {
         format!(
-            "{indentation}{name}: {type};",
-            indentation = self.get_indentation(),
-            name = self.get_field_name_from_column(column),
-            type = self.get_field_type_name_from_column(column),
+            "\t{name}: {type};",
+            name = self.get_column_field_name(column),
+            type = self.get_column_field_type_name(column),
         )
     }
 
-    fn generate(&self, tables: &Vec<data::Table>) -> String {
-        format!(
-            "{common_types}\n{types}\n",
-            common_types = COMMON_TYPES,
-            types = tables
-                .iter()
-                .map(|table| self.get_type_definition_from_table(table))
-                .collect::<Vec<String>>()
-                .join("\n\n"),
-        )
+    fn get_scalars(&self) -> Vec<(String, String)> {
+        vec![
+            ("BigInt".to_string(), "BigInt".to_string()),
+            ("Boolean".to_string(), "boolean".to_string()),
+            ("Char".to_string(), "string".to_string()),
+            ("Double".to_string(), "number".to_string()),
+            ("Hstore".to_string(), "Record<string, unknown>".to_string()),
+            ("Int".to_string(), "number".to_string()),
+            ("Json".to_string(), "Record<string, unknown>".to_string()),
+            ("Real".to_string(), "number".to_string()),
+            ("Text".to_string(), "string".to_string()),
+            ("Timestamp".to_string(), "Date".to_string()),
+            ("Uuid".to_string(), "string".to_string()),
+        ]
+    }
+
+    fn get_codes(&self, tables: &Vec<data::Table>) -> Vec<String> {
+        tables
+            .iter()
+            .map(|table| self.get_table_type_definition(table))
+            .collect::<Vec<String>>()
     }
 }
 
@@ -91,7 +95,11 @@ impl Plugin for TypeScriptPlugin {
         self.name
     }
 
-    fn run(&self, data: &data::Data) -> String {
-        self.generate(&data.database.tables)
+    fn run(&self, data: &data::Data) -> PluginResult {
+        PluginResult::from(
+            self.get_codes(&data.database.tables),
+            vec![],
+            self.get_scalars(),
+        )
     }
 }

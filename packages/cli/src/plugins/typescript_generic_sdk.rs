@@ -1,6 +1,6 @@
 use convert_case::{Case, Casing};
 
-use super::{Plugin, TypeScriptOperationsPlugin, TypeScriptPlugin};
+use super::{Plugin, PluginResult, TypeScriptOperationsPlugin, TypeScriptPlugin};
 use crate::data;
 
 #[derive(Debug)]
@@ -21,11 +21,11 @@ impl<'a> TypeScriptGenericSdkPlugin<'a> {
             typescript_operation_plugin,
         }
     }
-    fn get_requested_definition(&self) -> String {
-        format!("export type Requester = <R, V>(query: string, variables?: V) => Promise<R>;\n")
+    fn get_requester_definition(&self) -> String {
+        format!("export type Requester = <R, V>(query: string, variables?: V) => Promise<R>;")
     }
 
-    fn get_function_name_from_query(&self, query: &data::Query) -> String {
+    fn get_query_function_name(&self, query: &data::Query) -> String {
         query
             .path
             .file_stem()
@@ -36,15 +36,30 @@ impl<'a> TypeScriptGenericSdkPlugin<'a> {
             .to_case(Case::Camel)
     }
 
-    fn get_function_definition_from_query(&self, query: &data::Query) -> String {
+    fn get_query_function_definition(&self, query: &data::Query) -> String {
         format!(
-            "{indentation}{indentation}{function_name}: (variables?: {variables_type_name}): Promise<{result_type_name}[]> => requester<{result_type_name}[], {variables_type_name}>({document_variable_name}, variables),",
-            function_name = self.get_function_name_from_query(query),
-            indentation = self.typescript_plugin.get_indentation(),
-            result_type_name = self.typescript_operation_plugin.get_result_type_name(query),
+            "\t\t{function_name}: (variables?: {variables_type_name}): Promise<{result_type_name}[]> => requester<{result_type_name}[], {variables_type_name}>({document_variable_name}, variables),",
+            function_name = self.get_query_function_name(query),
+            result_type_name = self.typescript_operation_plugin.get_query_result_type_name(query),
             variables_type_name = self.typescript_operation_plugin.get_variables_type_name(query),
             document_variable_name = self.typescript_operation_plugin.get_ddl_variable_name(query),
         )
+    }
+
+    fn get_get_sdk_definition(&self, queries: &Vec<data::Query>) -> String {
+        let functions = queries
+            .iter()
+            .map(|query| self.get_query_function_definition(query))
+            .collect::<Vec<String>>()
+            .join("\n");
+        format!("export const getSdk = (requester: Requester) => {{\n\treturn {{\n{functions}\n\t}};\n}};", functions = functions)
+    }
+
+    fn get_codes(&self, data: &data::Data) -> Vec<String> {
+        vec![
+            self.get_requester_definition(),
+            self.get_get_sdk_definition(data.queries),
+        ]
     }
 }
 
@@ -53,18 +68,7 @@ impl<'a> Plugin for TypeScriptGenericSdkPlugin<'a> {
         self.name
     }
 
-    fn run(&self, data: &data::Data) -> String {
-        let functions = data
-            .queries
-            .iter()
-            .map(|query| self.get_function_definition_from_query(query))
-            .collect::<Vec<String>>()
-            .join("\n");
-        format!(
-            "{requested_definition}\nexport const getSdk = (requester: Requester) => {{\n{indentation}return {{\n{functions}\n{indentation}}};\n}};\n",
-            requested_definition = self.get_requested_definition(),
-            indentation = self.typescript_plugin.get_indentation(),
-            functions = functions
-        )
+    fn run(&self, data: &data::Data) -> PluginResult {
+        PluginResult::from(self.get_codes(data), vec![], vec![])
     }
 }

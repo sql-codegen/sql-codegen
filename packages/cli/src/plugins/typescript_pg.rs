@@ -1,6 +1,4 @@
-use convert_case::{Case, Casing};
-
-use super::{Plugin, TypeScriptGenericSdkPlugin, TypeScriptPlugin};
+use super::{Plugin, PluginResult, TypeScriptGenericSdkPlugin, TypeScriptPlugin};
 use crate::data;
 
 #[derive(Debug)]
@@ -21,6 +19,14 @@ impl<'a> TypeScriptPgPlugin<'a> {
             typescript_generic_sdk_plugin,
         }
     }
+
+    fn get_codes(&self) -> Vec<String> {
+        vec!["export const getPgSdk = (client: Client) => getSdk(async (query, variables) => (await client.query(query, variables as any)).rows as any);\n".to_string()]
+    }
+
+    fn get_imports(&self) -> Vec<String> {
+        vec!["import type { Client } from \"pg\";".to_string()]
+    }
 }
 
 impl<'a> Plugin for TypeScriptPgPlugin<'a> {
@@ -28,7 +34,7 @@ impl<'a> Plugin for TypeScriptPgPlugin<'a> {
         self.name
     }
 
-    fn run(&self, _data: &data::Data) -> String {
-        format!("import type {{ Client }} from \"pg\";\n\nexport const getPgSdk = (client: Client) => getSdk(async (query, variables) => (await client.query(query, variables as any)).rows as any);\n")
+    fn run(&self, _data: &data::Data) -> PluginResult {
+        PluginResult::from(self.get_codes(), self.get_imports(), vec![])
     }
 }

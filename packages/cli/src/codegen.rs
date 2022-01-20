@@ -3,6 +3,7 @@ use crate::config;
 use crate::data;
 use crate::error::CodegenError;
 use crate::generate_schema_command::GenerateSchemaCommand;
+use crate::plugins::PluginResult;
 use crate::plugins::TypeScriptPgPlugin;
 use crate::plugins::{
     Plugin, TypeScriptGenericSdkPlugin, TypeScriptOperationsPlugin, TypeScriptPlugin,
@@ -105,7 +106,7 @@ impl Codegen {
             ];
 
             for generate_config in self.config.generate.iter() {
-                let mut plugins_code: Vec<String> = vec![];
+                let mut plugin_results: PluginResult = PluginResult::new();
                 for plugin_config in generate_config.plugins.iter() {
                     let plugin = plugins
                         .iter()
@@ -115,9 +116,9 @@ impl Codegen {
                             plugin_config.name.clone(),
                         ));
                     }
-                    plugins_code.push(plugin.unwrap().run(&data));
+                    plugin_results.append(&mut plugin.unwrap().run(&data));
                 }
-                fs::write(&generate_config.output, plugins_code.join("\n"))?
+                fs::write(&generate_config.output, plugin_results.to_string())?
             }
         }
         Ok(())
