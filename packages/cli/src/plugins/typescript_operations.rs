@@ -1,7 +1,6 @@
 use super::PluginResult;
 use super::{Plugin, TypeScriptPlugin};
 use crate::data;
-use crate::projection;
 use convert_case::{Case, Casing};
 
 #[derive(Debug)]
@@ -18,7 +17,7 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
         }
     }
 
-    pub fn get_field_definition(&self, projection: &projection::Projection) -> String {
+    pub fn get_field_definition(&self, projection: &data::Projection) -> String {
         format!(
             "\t{name}: {type},",
             name = projection.column_name,

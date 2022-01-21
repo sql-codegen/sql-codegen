@@ -6,7 +6,6 @@ mod duplicated_identifier;
 mod error;
 mod generate_schema_command;
 mod plugins;
-mod projection;
 mod utils;
 
 use crate::codegen::Codegen;

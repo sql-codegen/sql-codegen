@@ -1,4 +1,3 @@
-use crate::projection::Projection;
 use crate::{data, error::CodegenError};
 use sqlparser::ast::{SetExpr, Statement};
 use sqlparser::dialect::PostgreSqlDialect;
@@ -10,11 +9,11 @@ use std::path::PathBuf;
 pub struct Query<'a> {
     pub ddl: String,
     pub path: PathBuf,
-    pub projections: Vec<Projection<'a>>,
+    pub projections: Vec<data::Projection<'a>>,
 }
 
 impl<'a> Query<'a> {
-    pub fn new(path: PathBuf, ddl: String, projections: Vec<Projection>) -> Query {
+    pub fn new(path: PathBuf, ddl: String, projections: Vec<data::Projection>) -> Query {
         Query {
             ddl,
             path,
@@ -50,7 +49,8 @@ impl<'a> Query<'a> {
         for statement in ast {
             if let Statement::Query(query) = statement {
                 if let SetExpr::Select(select) = &query.body {
-                    let projections = Projection::from(database, &select.from, &select.projection);
+                    let projections =
+                        data::Projection::from(database, &select.from, &select.projection);
                     return Ok(Query::new(path, ddl, projections));
                 }
             }
