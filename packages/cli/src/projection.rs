@@ -1,4 +1,4 @@
-use crate::data;
+use crate::{data, duplicated_identifier::DuplicatedIdentifierError};
 use sqlparser::ast::{Expr, Ident, SelectItem, TableFactor, TableWithJoins};
 
 #[derive(Debug)]
@@ -30,6 +30,7 @@ impl<'a> Projection<'a> {
     fn filter_by_compound_identifier(
         projections: &Vec<Projection<'a>>,
         identifiers: &Vec<Ident>,
+        alias: Option<&Ident>,
     ) -> Vec<Projection<'a>> {
         if identifiers.len() != 2 {
             let compound_identifier = identifiers
@@ -60,12 +61,18 @@ impl<'a> Projection<'a> {
                 table_name, column_name
             );
         }
+        if let Some(alias) = alias {
+            let mut projection = filtered_projections.first().unwrap().clone();
+            projection.column_name = alias.value.clone();
+            return vec![projection];
+        }
         filtered_projections
     }
 
     fn filter_by_identifier(
         projections: &Vec<Projection<'a>>,
         identifier: &Ident,
+        alias: Option<&Ident>,
     ) -> Vec<Projection<'a>> {
         let filtered_projections = projections
             .iter()
@@ -78,7 +85,62 @@ impl<'a> Projection<'a> {
         if filtered_projections.len() > 1 {
             panic!("Column reference \"{}\" is ambiguous", identifier.value);
         }
+        if let Some(alias) = alias {
+            let mut projection = filtered_projections.first().unwrap().clone();
+            projection.column_name = alias.value.clone();
+            return vec![projection];
+        }
         filtered_projections
+    }
+
+    fn filter_by_select_item(
+        projections: &Vec<Projection<'a>>,
+        select_item: &SelectItem,
+    ) -> Vec<Projection<'a>> {
+        // println!("{:#?}", select_item);
+        match select_item {
+            SelectItem::UnnamedExpr(expr) => match expr {
+                Expr::CompoundIdentifier(identifiers) => {
+                    Projection::filter_by_compound_identifier(&projections, identifiers, None)
+                }
+                Expr::Identifier(identifier) => {
+                    Projection::filter_by_identifier(&projections, identifier, None)
+                }
+                _ => panic!("Not supported expression"),
+            },
+            SelectItem::ExprWithAlias { expr, alias } => match expr {
+                Expr::CompoundIdentifier(identifiers) => Projection::filter_by_compound_identifier(
+                    &projections,
+                    identifiers,
+                    Some(alias),
+                ),
+                Expr::Identifier(identifier) => {
+                    Projection::filter_by_identifier(&projections, identifier, Some(alias))
+                }
+                _ => panic!("Not supported expression"),
+            },
+            SelectItem::QualifiedWildcard(..) => {
+                panic!("\"{}\" is not supported expression", select_item)
+            }
+            SelectItem::Wildcard => projections.clone(),
+        }
+    }
+
+    fn find_duplicated_selections(
+        projections: &Vec<Projection<'a>>,
+    ) -> Option<DuplicatedIdentifierError> {
+        for projection_a in projections {
+            for projection_b in projections {
+                if projection_a.column != projection_b.column
+                    && projection_a.column_name == projection_b.column_name
+                {
+                    return Some(DuplicatedIdentifierError::new(
+                        projection_a.column_name.clone(),
+                    ));
+                }
+            }
+        }
+        None
     }
 
     pub fn from(
@@ -117,22 +179,13 @@ impl<'a> Projection<'a> {
 
         let projections = select_items
             .iter()
-            .map(|select_item| match select_item {
-                SelectItem::UnnamedExpr(expr) => match expr {
-                    Expr::CompoundIdentifier(identifiers) => {
-                        Projection::filter_by_compound_identifier(&projections, identifiers)
-                    }
-                    Expr::Identifier(identifier) => {
-                        Projection::filter_by_identifier(&projections, identifier)
-                    }
-                    _ => panic!("Not supported expression"),
-                },
-                SelectItem::ExprWithAlias { .. } => panic!("Not supported expression"),
-                SelectItem::QualifiedWildcard(..) => panic!("Not supported expression"),
-                SelectItem::Wildcard => projections.clone(),
-            })
+            .map(|select_item| Projection::filter_by_select_item(&projections, select_item))
             .flatten()
             .collect::<Vec<Projection>>();
+
+        if let Some(error) = Projection::find_duplicated_selections(&projections) {
+            panic!("Duplicated identifier \"{}\"", error.identifier);
+        }
 
         projections
     }

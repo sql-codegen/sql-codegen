@@ -1,3 +1,4 @@
+// use crate::duplicated_identifier::DuplicatedIdentifierError;
 use postgres;
 use sqlparser;
 use std::io;
@@ -5,6 +6,7 @@ use std::io;
 #[derive(Debug)]
 pub enum CodegenError {
     ConfigError(String),
+    // DuplicatedIdentifierError(DuplicatedIdentifierError),
     IoError(io::Error),
     PluginNotFoundError(String),
     ParserError(sqlparser::parser::ParserError),
