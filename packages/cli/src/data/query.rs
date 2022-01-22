@@ -9,15 +9,15 @@ use std::path::PathBuf;
 pub struct Query<'a> {
     pub ddl: String,
     pub path: PathBuf,
-    pub projections: Vec<data::Projection<'a>>,
+    pub projection: data::Projection<'a>,
 }
 
 impl<'a> Query<'a> {
-    pub fn new(path: PathBuf, ddl: String, projections: Vec<data::Projection>) -> Query {
+    pub fn new(path: PathBuf, ddl: String, projection: data::Projection) -> Query {
         Query {
             ddl,
             path,
-            projections,
+            projection,
         }
     }
 
@@ -49,9 +49,10 @@ impl<'a> Query<'a> {
         for statement in ast {
             if let Statement::Query(query) = statement {
                 if let SetExpr::Select(select) = &query.body {
-                    let projections =
-                        data::Projection::from(database, &select.from, &select.projection);
-                    return Ok(Query::new(path, ddl, projections));
+                    let mut projection =
+                        data::Projection::from_tables_with_joins(database, &select.from);
+                    projection.filter_by_select_items(&select.projection);
+                    return Ok(Query::new(path, ddl, projection));
                 }
             }
         }

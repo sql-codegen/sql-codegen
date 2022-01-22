@@ -17,11 +17,11 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
         }
     }
 
-    pub fn get_field_definition(&self, projection: &data::Projection) -> String {
+    pub fn get_field_definition(&self, selection: &data::Selection) -> String {
         format!(
             "\t{name}: {type},",
-            name = projection.column_name,
-            type = self.typescript_plugin.get_column_field_type_name(projection.column)
+            name = selection.column_name,
+            type = self.typescript_plugin.get_column_field_type_name(selection.column)
         )
     }
 
@@ -44,9 +44,10 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
     pub fn get_query_result_type_definition(&self, query: &data::Query) -> String {
         let result_type_name = self.get_query_result_type_name(query);
         let fields = query
-            .projections
+            .projection
+            .selections
             .iter()
-            .map(|projection| self.get_field_definition(projection))
+            .map(|selection| self.get_field_definition(selection))
             .collect::<Vec<String>>()
             .join("\n");
         format!(
