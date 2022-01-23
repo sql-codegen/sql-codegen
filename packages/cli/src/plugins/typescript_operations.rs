@@ -24,8 +24,12 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
         format!("\t{ts_type},")
     }
 
+    pub fn get_object_result_field_name(&self, selection: &data::Selection) -> String {
+        selection.column_name.clone()
+    }
+
     pub fn get_object_result_field_definition(&self, selection: &data::Selection) -> String {
-        let name = &selection.column_name;
+        let name = self.get_object_result_field_name(selection);
         let ts_type = self
             .typescript_plugin
             .get_column_field_type_name(selection.column);
@@ -72,7 +76,18 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
             .projection
             .selections
             .iter()
-            .map(|selection| self.get_object_result_field_definition(selection))
+            .enumerate()
+            // Filter out duplicates and only leave the last one.
+            .filter(|(index, selection_a)| {
+                let has_duplicate = query
+                    .projection
+                    .selections
+                    .iter()
+                    .skip(index + 1)
+                    .any(|selection_b| selection_a.column_name == selection_b.column_name);
+                !has_duplicate
+            })
+            .map(|(_index, selection)| self.get_object_result_field_definition(selection))
             .collect::<Vec<String>>()
             .join("\n");
         format!(
