@@ -45,6 +45,7 @@ impl TypeScriptPlugin {
     }
 
     fn get_table_type_definition(&self, table: &data::Table) -> String {
+        let name = self.get_table_type_name(table);
         let fields = table
             .columns
             .iter()
@@ -52,18 +53,17 @@ impl TypeScriptPlugin {
             .collect::<Vec<String>>()
             .join("\n");
         format!(
-            "export type {name} = {{\n{fields}\n}};",
-            name = self.get_table_type_name(table),
-            fields = fields
+            "\
+            export type {name} = {{\n\
+            {fields}\n\
+            }};"
         )
     }
 
     fn get_column_field_definition(&self, column: &data::Column) -> String {
-        format!(
-            "\t{name}: {type};",
-            name = self.get_column_field_name(column),
-            type = self.get_column_field_type_name(column),
-        )
+        let name = self.get_column_field_name(column);
+        let ts_type = self.get_column_field_type_name(column);
+        format!("\t{name}: {ts_type};")
     }
 
     fn get_scalars(&self) -> Vec<(String, String)> {

@@ -17,12 +17,19 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
         }
     }
 
-    pub fn get_field_definition(&self, selection: &data::Selection) -> String {
-        format!(
-            "\t{name}: {type},",
-            name = selection.column_name,
-            type = self.typescript_plugin.get_column_field_type_name(selection.column)
-        )
+    pub fn get_array_result_element_definition(&self, selection: &data::Selection) -> String {
+        let ts_type = self
+            .typescript_plugin
+            .get_column_field_type_name(selection.column);
+        format!("\t{ts_type},")
+    }
+
+    pub fn get_object_result_field_definition(&self, selection: &data::Selection) -> String {
+        let name = &selection.column_name;
+        let ts_type = self
+            .typescript_plugin
+            .get_column_field_type_name(selection.column);
+        format!("\t{name}: {ts_type};")
     }
 
     fn get_file_stem(&self, query: &data::Query) -> String {
@@ -35,25 +42,44 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
             .to_string()
     }
 
-    pub fn get_query_result_type_name(&self, query: &data::Query) -> String {
+    pub fn get_query_array_result_type_name(&self, query: &data::Query) -> String {
         let file_stem = self.get_file_stem(query);
-        let result_type_name = format!("{}QueryResult", file_stem.to_case(Case::Pascal));
-        result_type_name
+        let prefix = file_stem.to_case(Case::Pascal);
+        format!("{prefix}QueryArrayResult")
     }
 
-    pub fn get_query_result_type_definition(&self, query: &data::Query) -> String {
-        let result_type_name = self.get_query_result_type_name(query);
+    pub fn get_query_object_result_type_name(&self, query: &data::Query) -> String {
+        let file_stem = self.get_file_stem(query);
+        let prefix = file_stem.to_case(Case::Pascal);
+        format!("{prefix}QueryObjectResult")
+    }
+
+    pub fn get_query_array_result_type_definition(&self, query: &data::Query) -> String {
+        let array_result_type_name = self.get_query_array_result_type_name(query);
         let fields = query
             .projection
             .selections
             .iter()
-            .map(|selection| self.get_field_definition(selection))
+            .map(|selection| self.get_array_result_element_definition(selection))
+            .collect::<Vec<String>>()
+            .join("\n");
+        format!("export type {array_result_type_name} = readonly [\n{fields}\n];")
+    }
+
+    pub fn get_query_object_result_type_definition(&self, query: &data::Query) -> String {
+        let object_result_type_name = self.get_query_object_result_type_name(query);
+        let fields = query
+            .projection
+            .selections
+            .iter()
+            .map(|selection| self.get_object_result_field_definition(selection))
             .collect::<Vec<String>>()
             .join("\n");
         format!(
-            "export type {result_type_name} = {{\n{fields}\n}};",
-            fields = fields,
-            result_type_name = result_type_name
+            "\
+            export type {object_result_type_name} = Readonly<{{\n\
+            {fields}\n\
+            }}>;"
         )
     }
 
@@ -66,7 +92,7 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
     pub fn get_variables_type_definition(&self, query: &data::Query) -> String {
         let variables_type_name = self.get_variables_type_name(query);
         format!(
-            "export type {variables_type_name} = {{}};",
+            "export type {variables_type_name} = [];",
             variables_type_name = variables_type_name
         )
     }
@@ -92,7 +118,8 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
 
     pub fn get_type_definitions(&self, query: &data::Query) -> Vec<String> {
         vec![
-            self.get_query_result_type_definition(query),
+            self.get_query_array_result_type_definition(query),
+            self.get_query_object_result_type_definition(query),
             self.get_variables_type_definition(query),
             self.get_ddl_variable(query),
         ]

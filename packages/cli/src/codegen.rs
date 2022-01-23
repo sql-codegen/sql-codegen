@@ -95,9 +95,8 @@ impl Codegen {
             let typescript_plugin = TypeScriptPlugin::new();
             let typescript_operation_plugin = TypeScriptOperationsPlugin::new(&typescript_plugin);
             let typescript_generic_sdk_plugin =
-                TypeScriptGenericSdkPlugin::new(&typescript_plugin, &typescript_operation_plugin);
-            let typescript_pg_plugin =
-                TypeScriptPgPlugin::new(&typescript_plugin, &typescript_generic_sdk_plugin);
+                TypeScriptGenericSdkPlugin::new(&typescript_operation_plugin);
+            let typescript_pg_plugin = TypeScriptPgPlugin::new();
             let plugins: Vec<&dyn Plugin> = vec![
                 &typescript_plugin,
                 &typescript_operation_plugin,

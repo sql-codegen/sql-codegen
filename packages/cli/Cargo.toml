@@ -6,10 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "3.0.0", features = ["derive"] }
+clap = { version = "3.0.10", features = ["derive"] }
 convert_case = "0.5.0"
 glob = "0.3.0"
-postgres = "0.19.1"
-serde = { version = "1.0.90", features = ["derive"] }
-serde_json = "1.0.68"
+postgres = "0.19.2"
+serde = { version = "1.0.134", features = ["derive"] }
+serde_json = "1.0.77"
 sqlparser = "0.13.0"

@@ -1,27 +1,20 @@
-use super::{Plugin, PluginResult, TypeScriptGenericSdkPlugin, TypeScriptPlugin};
+use super::{Plugin, PluginResult};
 use crate::data;
 
 #[derive(Debug)]
-pub struct TypeScriptPgPlugin<'a> {
+pub struct TypeScriptPgPlugin {
     name: &'static str,
-    typescript_plugin: &'a TypeScriptPlugin,
-    typescript_generic_sdk_plugin: &'a TypeScriptGenericSdkPlugin<'a>,
 }
 
-impl<'a> TypeScriptPgPlugin<'a> {
-    pub fn new(
-        typescript_plugin: &'a TypeScriptPlugin,
-        typescript_generic_sdk_plugin: &'a TypeScriptGenericSdkPlugin,
-    ) -> TypeScriptPgPlugin<'a> {
+impl TypeScriptPgPlugin {
+    pub fn new() -> TypeScriptPgPlugin {
         TypeScriptPgPlugin {
             name: "typescript-pg",
-            typescript_plugin,
-            typescript_generic_sdk_plugin,
         }
     }
 
     fn get_codes(&self) -> Vec<String> {
-        vec!["export const getPgSdk = (client: Client) => getSdk(async (query, variables) => (await client.query(query, variables as any)).rows as any);\n".to_string()]
+        vec!["export const getPgSdk = (client: Client) => getSdk(async ({ query, variables, rowMode }) => (await client.query({ text: query, values: variables as any, rowMode: rowMode as any }) as any).rows);\n".to_string()]
     }
 
     fn get_imports(&self) -> Vec<String> {
@@ -29,7 +22,7 @@ impl<'a> TypeScriptPgPlugin<'a> {
     }
 }
 
-impl<'a> Plugin for TypeScriptPgPlugin<'a> {
+impl Plugin for TypeScriptPgPlugin {
     fn name(&self) -> &'static str {
         self.name
     }

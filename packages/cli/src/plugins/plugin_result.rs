@@ -37,20 +37,17 @@ impl PluginResult {
     }
 
     fn format_scalars(&self) -> String {
+        let scalars = self
+            .scalars
+            .iter()
+            .map(|(sql_type, dest_type)| format!("\t{sql_type}: {dest_type};"))
+            .collect::<Vec<String>>()
+            .join("\n");
         format!(
-            "export type Scalars = {{\n{scalars}\n}};",
-            scalars = self
-                .scalars
-                .iter()
-                .map(|(sql_type, dest_type)| {
-                    format!(
-                        "\t{sql_type}: {dest_type};",
-                        sql_type = sql_type,
-                        dest_type = dest_type
-                    )
-                })
-                .collect::<Vec<String>>()
-                .join("\n")
+            "\
+            export type Scalars = {{\n\
+            {scalars}\n\
+            }};"
         )
     }
 
@@ -59,11 +56,16 @@ impl PluginResult {
     }
 
     pub fn to_string(&self) -> String {
+        let imports = self.format_imports();
+        let scalars = self.format_scalars();
+        let codes = self.format_codes();
         format!(
-            "{imports}\n\n{scalars}\n\n{codes}",
-            imports = self.format_imports(),
-            scalars = self.format_scalars(),
-            codes = self.format_codes(),
+            "\
+            {imports}\n\
+            \n\
+            {scalars}\n\
+            \n\
+            {codes}"
         )
     }
 }
