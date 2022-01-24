@@ -2,7 +2,6 @@ mod cli;
 mod codegen;
 mod config;
 mod data;
-mod duplicated_identifier;
 mod error;
 mod generate_schema_command;
 mod plugins;

@@ -1,7 +1,7 @@
 use crate::cli;
 use crate::config;
 use crate::data;
-use crate::error::CodegenError;
+use crate::error;
 use crate::generate_schema_command::GenerateSchemaCommand;
 use crate::plugins::PluginResult;
 use crate::plugins::TypeScriptPgPlugin;
@@ -20,7 +20,7 @@ pub struct Codegen {
 }
 
 impl Codegen {
-    pub fn new() -> Result<Codegen, CodegenError> {
+    pub fn new() -> Result<Codegen, error::CodegenError> {
         // Collect the CLI arguments.
         let cli = cli::Cli::new();
 
@@ -31,7 +31,7 @@ impl Codegen {
         Ok(Codegen { cli, config })
     }
 
-    pub fn connect(&self) -> Result<postgres::Client, CodegenError> {
+    pub fn connect(&self) -> Result<postgres::Client, error::CodegenError> {
         let params = format!(
             "host={host} user={user} port={port} dbname={database} password={password}",
             host = self.config.connection.host,
@@ -44,19 +44,20 @@ impl Codegen {
         Ok(client)
     }
 
-    pub fn get_schema_file_path(&self) -> Result<PathBuf, CodegenError> {
+    pub fn get_schema_file_path(&self) -> Result<PathBuf, error::CodegenError> {
         let current_dir = env::current_dir()?;
         Ok(current_dir.join(&self.config.schema))
     }
 
-    pub fn get_query_file_paths(&self) -> Result<Vec<PathBuf>, CodegenError> {
+    pub fn get_query_file_paths(&self) -> Result<Vec<PathBuf>, error::CodegenError> {
+        let glob_pattern = &self.config.queries;
         let mut query_file_paths = vec![];
-        let glob_result = glob(&self.config.queries);
+        let glob_result = glob(glob_pattern);
         let entries = match glob_result {
             Ok(entries) => entries,
             Err(_) => {
-                return Err(CodegenError::ConfigError(
-                    "Queries glob pattern error".to_string(),
+                return Err(error::CodegenError::ConfigError(
+                    format!("Invalid glob pattern value ({glob_pattern}) in the \"queries\" config property")
                 ));
             }
         };
@@ -64,8 +65,26 @@ impl Codegen {
             match entry {
                 Ok(path) => query_file_paths.push(path),
                 Err(_) => {
-                    return Err(CodegenError::ConfigError(
-                        "Queries glob pattern error".to_string(),
+                    return Err(error::CodegenError::ConfigError(
+                        format!("Invalid glob pattern value ({glob_pattern}) in the \"queries\" config property")
+                    ));
+                }
+            }
+        }
+
+        for query_file_path in &query_file_paths {
+            let path = query_file_path.to_str().unwrap();
+            match query_file_path.extension() {
+                Some(extension) => {
+                    if extension != "sql" {
+                        return Err(error::CodegenError::ConfigError(
+                            format!("Invalid glob pattern ({glob_pattern}) in the \"queries\" property that resolves to the \"{path}\" path that is not a valid SQL file"),
+                        ));
+                    }
+                }
+                None => {
+                    return Err(error::CodegenError::ConfigError(
+                        format!("Invalid glob pattern ({glob_pattern}) in the \"queries\" property that resolves to the \"{path}\" path that is not a valid SQL file"),
                     ));
                 }
             }
@@ -73,7 +92,7 @@ impl Codegen {
         Ok(query_file_paths)
     }
 
-    pub fn run(&self) -> Result<(), CodegenError> {
+    pub fn run(&self) -> Result<(), error::CodegenError> {
         // Run command if provided.
         if let Some(command) = &self.cli.command {
             match command {
@@ -111,9 +130,10 @@ impl Codegen {
                         .iter()
                         .find(|plugin| plugin.name() == plugin_config.name);
                     if plugin.is_none() {
-                        return Err(CodegenError::PluginNotFoundError(
-                            plugin_config.name.clone(),
-                        ));
+                        return Err(error::CodegenError::ConfigError(format!(
+                            "Plugin \"{}\" not found",
+                            plugin_config.name.clone()
+                        )));
                     }
                     plugin_results.append(&mut plugin.unwrap().run(&data));
                 }

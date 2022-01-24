@@ -136,8 +136,8 @@ mod tests {
         let select_items = vec![SelectItem::Wildcard];
 
         let mut projection =
-            data::Projection::from_tables_with_joins(&public_database, &from_users);
-        projection.filter_by_select_items(&select_items);
+            data::Projection::from_tables_with_joins(&public_database, &from_users).unwrap();
+        projection.filter_by_select_items(&select_items).unwrap();
 
         assert_eq!(projection.selections.len(), 2);
         assert_eq!(
@@ -176,8 +176,9 @@ mod tests {
         let select_items = vec![SelectItem::Wildcard];
 
         let mut projection =
-            data::Projection::from_tables_with_joins(&public_database, &from_aliased_users);
-        projection.filter_by_select_items(&select_items);
+            data::Projection::from_tables_with_joins(&public_database, &from_aliased_users)
+                .unwrap();
+        projection.filter_by_select_items(&select_items).unwrap();
 
         assert_eq!(projection.selections.len(), 2);
         assert_eq!(

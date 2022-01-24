@@ -1,4 +1,4 @@
-use super::table::Table;
+use super::table::{self, Table};
 use crate::error;
 use sqlparser::{ast::Statement, dialect::PostgreSqlDialect, parser::Parser};
 use std::fs;
@@ -27,18 +27,18 @@ impl Database {
         let dialect = PostgreSqlDialect {};
         let schema_ddl = fs::read_to_string(schema_file_path)?;
         let schema_ast = Parser::parse_sql(&dialect, &schema_ddl)?;
-        Ok(Database::from_ast(&schema_ast))
+        Database::from_ast(&schema_ast)
     }
 
-    fn from_ast(ast: &Vec<Statement>) -> Database {
-        let tables: Vec<Table> = ast
+    fn from_ast(ast: &Vec<Statement>) -> Result<Database, error::CodegenError> {
+        let tables = ast
             .iter()
             .filter_map(|statement| match statement {
                 Statement::CreateTable { .. } => Some(Table::from_statement(statement)),
                 _ => None,
             })
-            .collect();
-        Database::new("public".to_string(), tables)
+            .collect::<Result<Vec<table::Table>, error::CodegenError>>()?;
+        Ok(Database::new("public".to_string(), tables))
     }
 
     #[allow(dead_code)]

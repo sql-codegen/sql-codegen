@@ -1,4 +1,4 @@
-use crate::error::CodegenError;
+use crate::error;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -37,30 +37,30 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(config_file_path: &Option<String>) -> Result<Config, CodegenError> {
+    pub fn new(config_file_path: &Option<String>) -> Result<Config, error::CodegenError> {
         let config_file_path = match &config_file_path {
             Some(config_file_path) => Some(config_file_path.clone()),
             None => Config::find_config_file_path(),
         };
         if config_file_path.is_none() {
-            return Err(CodegenError::ConfigError(
+            return Err(error::CodegenError::CliError(
                 "The config file not found in current or parent directories.".to_string(),
             ));
         }
         let config_file_content =
             fs::read_to_string(config_file_path.unwrap()).or_else(|error| {
                 if let ErrorKind::NotFound = error.kind() {
-                    return Err(CodegenError::ConfigError(
+                    return Err(error::CodegenError::CliError(
                         "The config file does not exist.".to_string(),
                     ));
                 } else {
-                    return Err(CodegenError::ConfigError(
+                    return Err(error::CodegenError::CliError(
                         "Error reading config file.".to_string(),
                     ));
                 }
             })?;
         let config = serde_json::from_str::<Config>(&config_file_content).or_else(|_| {
-            Err(CodegenError::ConfigError(
+            Err(error::CodegenError::CliError(
                 "Error parsing config file.".to_string(),
             ))
         })?;

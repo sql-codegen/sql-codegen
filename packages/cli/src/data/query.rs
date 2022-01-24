@@ -1,4 +1,4 @@
-use crate::{data, error::CodegenError};
+use crate::{data, error};
 use sqlparser::ast::{SetExpr, Statement};
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
@@ -24,7 +24,7 @@ impl<'a> Query<'a> {
     pub fn from_query_file_paths(
         database: &'a data::Database,
         query_file_paths: Vec<PathBuf>,
-    ) -> Result<Vec<Query<'a>>, CodegenError> {
+    ) -> Result<Vec<Query<'a>>, error::CodegenError> {
         let dialect = PostgreSqlDialect {};
         let mut queries: Vec<Query> = vec![];
         for query_file_path in query_file_paths {
@@ -45,19 +45,20 @@ impl<'a> Query<'a> {
         path: PathBuf,
         ddl: String,
         ast: &Vec<Statement>,
-    ) -> Result<Query<'a>, CodegenError> {
+    ) -> Result<Query<'a>, error::CodegenError> {
         for statement in ast {
             if let Statement::Query(query) = statement {
                 if let SetExpr::Select(select) = &query.body {
                     let mut projection =
-                        data::Projection::from_tables_with_joins(database, &select.from);
-                    projection.filter_by_select_items(&select.projection);
+                        data::Projection::from_tables_with_joins(database, &select.from)?;
+                    projection.filter_by_select_items(&select.projection)?;
                     return Ok(Query::new(path, ddl, projection));
                 }
             }
         }
-        Err(CodegenError::QueryError(
-            "Query does not contain the select statement".to_string(),
-        ))
+        let path = path.to_str().unwrap();
+        Err(error::CodegenError::QueryError(format!(
+            "The \"{path}\" file does not contain the SELECT statement"
+        )))
     }
 }

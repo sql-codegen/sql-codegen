@@ -1,5 +1,5 @@
 use super::column::Column;
-use crate::utils;
+use crate::{error, utils};
 use sqlparser::ast::Statement;
 
 #[derive(Debug)]
@@ -22,15 +22,17 @@ impl Table {
         Table { name, columns }
     }
 
-    pub fn from_statement(statement: &Statement) -> Table {
+    pub fn from_statement(statement: &Statement) -> Result<Table, error::CodegenError> {
         if let Statement::CreateTable { columns, name, .. } = statement {
             let columns: Vec<Column> = columns
                 .iter()
                 .map(|column| Column::from_column_definition(column))
                 .collect();
-            return Table::new(utils::object_name_to_string(name), columns);
+            return Ok(Table::new(utils::object_name_to_string(name), columns));
         }
-        panic!("Expected a create table statement");
+        Err(error::CodegenError::SchemaError(format!(
+            "Expected a CREATE TABLE statement, got: {statement}",
+        )))
     }
 
     #[allow(dead_code)]
