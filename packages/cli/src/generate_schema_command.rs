@@ -101,7 +101,8 @@ const TABLES_QUERY: &str =
   CASE WHEN pg_constraint.contype = 'f' THEN pg_class2.relname END AS foreign_key,
   CASE WHEN pg_constraint.contype = 'f' THEN pg_constraint.confkey END AS foreign_key_fieldnum,
   CASE WHEN pg_constraint.contype = 'f' THEN pg_constraint.conkey END AS foreign_key_connnum,
-  CASE WHEN pg_attribute.atthasdef = 't' THEN pg_attrdef.adsrc END AS default
+--  CASE WHEN pg_attribute.atthasdef = 't' THEN pg_attrdef.adsrc END AS default,
+  CASE WHEN pg_attribute.atthasdef = 't' THEN pg_get_expr(pg_attrdef.adbin, adrelid) END AS default
 FROM
   pg_attribute
   JOIN pg_class ON pg_class.oid = pg_attribute.attrelid
