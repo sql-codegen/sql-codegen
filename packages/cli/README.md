@@ -1,11 +1,19 @@
 # SQL Code Generator
 
-## Configuration
+- [Getting started](#getting-started)
+- [Planned features](#planned-features)
+- [Ideas](#ideas)
+- [Missing parser features](#missing-parser-features)
 
-In the config file you can define naming convention of the generated `schema.gql` file as well as for your queries.
+## Getting started
+
+### Create configuration
+
+First, create the `sql-codegen.json` file in the root of your project.
 
 ```json
 {
+  "dialect": "postgres",
   "connection": {
     "host": "HOST",
     "user": "USER",
@@ -13,22 +21,102 @@ In the config file you can define naming convention of the generated `schema.gql
     "database": "DATABASE",
     "password": "PASSWORD"
   },
-  "schema": "./schema.gql",
-  "queries": "./queries/*.gql",
-  "namingConvention": {
-    "table": "PascalCase",
-    "column": "lowerCase",
-  }
+  "schema": "generated/schema.sql",
+  "generate": [
+    {
+      "output": "generated/types.ts",
+      "plugins": [
+        { "name": "typescript" },
+        { "name": "typescript-operations" },
+        { "name": "typescript-generic-sdk" },
+        { "name": "typescript-pg" }
+      ]
+    }
+  ],
+  "queries": "queries/*.sql"
 }
 ```
 
-## Generating schema
+### Download schema
+
+Next, download schema of your database by executing the following command:
 
 ```sh
-$ sql-codegen generate schema
+$ sql-codegen schema
 ```
 
-You can also define your mapping directly inside the `schema.sql` file.
+Schema file will end up in the `generated/schema.sql` file as specified in the config file.
+
+### Create queries
+
+Let's create some queries in the `queries` directory.
+
+The `queries/find-all-users.sql` file:
+
+```sql
+SELECT * FROM users;
+```
+
+### Generate SDK code from queries
+
+Run the following command to generate SDK code from the queries.
+
+```sh
+sql-codegen
+```
+
+The query file name will be used to generate the name of the operation. The `camelCase` name will be used. In this example, the `find-all-users.sql` will be converted to `findAllUsers` function in SDK.
+
+The generated code will be stored in the `generated/types.ts` file.
+
+### Setup SDK
+
+In your TypeScript project, import the `getPgSdk` function from `generated/types.ts` file and initialize it with Postgres client.
+
+```ts
+import { Client } from "pg";
+
+const client = new Client({
+  user: process.env.POSTGRES_USERNAME!,
+  host: process.env.POSTGRES_HOST!,
+  database: process.env.POSTGRES_DATABASE!,
+  password: process.env.POSTGRES_PASSWORD!,
+  port: parseInt(process.env.POSTGRES_PORT!, 10),
+});
+await client.connect();
+
+const sdk = getPgSdk(client);
+```
+
+### Run the code
+
+Now you can run the `findAllUsers` function from the SDK.
+
+```ts
+const users = sdk.findAllUsers();
+const fullNames = users.map((user) => `${user.first_name} ${user.last_name}`);
+```
+
+That's it! You have full autocompletion for your SQL queries. No more typing!
+
+## Planned features
+
+- Support for INSERT/UPDATE/DELETE queries
+- Variables/Parameters
+- Mapping scalars to custom types in config
+- Support for the SQL enum data types
+- Returning a single object instead of an array when `LIMIT 1` is used
+- Hydration based on `JOIN`s
+- Other dialects support like MySQL, MSSQL, SQLLite, etc.
+- Multiple queries per file
+- Transactions
+- Configuring naming convention like `camelCase`, `snake_case`, `PascalCase` etc.
+- Plugins generating types and SDK code for Rust, PHP, Python and Java
+- Migrations
+
+## Ideas
+
+- Defining aliases for table and column names directly in the schema file
 
 ```sql
 /* @alias User */
@@ -40,79 +128,31 @@ CREATE TABLE users (
 );
 ```
 
-## Generating code from queries
+- Named parameters/variables
 
-The following SQL query in the `get-user-by-id.sql` file:
+Postgres doesn't have named parameters, however they could be deduced from the column name with which the variable is being used. In this example, parameter name would be `id`.
 
 ```sql
--- If the @paramName comment is not defined then name of the params will be taken from the column name with which it's being used.
-/* @paramName $1 id */
--- Your custom alias always has a precedence
-SELECT *, name AS "another_name"
+SELECT *
 FROM users
 WHERE id = $1
 LIMIT 1;
 ```
 
-After running the command:
+It could also be changed using comment.
 
-```sh
-$ sql-codegen generate queries
+```sql
+/* @alias $1 userId */
+SELECT *
+FROM users
+WHERE id = $1
+LIMIT 1;
 ```
 
-It will product the following function and types:
-
-```ts
-type User {
-  firstName: string;
-  id: Uuid;
-  name: string;
-  another_name: string;
-};
-
-type GetUserByIdParams = {
-  id: Uuid;
-};
-
-type GetUserById = (params: GetUserByIdParams) => User;
-
-type SdkFactoryDeps = {
-  pgClient: PgClient;
-}
-
-export const GetUserByIdQuery = 'SELECT first_name AS "firstName", id AS "id", name AS "name" FROM users AS "User" WHERE id = $1 LIMIT 1;';
-
-const sqkFactory = (deps: SdkFactoryDeps) => {
-  const getUserById: GetUserById = (params) => {
-    const result = await pgClient.query(GetUserByIdQuery, [params.id]);
-    return result.rows[0];
-  };
-
-  return { getUserById };
-}
-```
-
-Which you can use as follows:
-
-```ts
-const sdk = sdkFactory({ pgClient });
-const user = await sdk.getUserById({ id: 1 });
-```
-
-## Missing Features
+## Missing parser features
 
 Currently there are some missing features in the SQL parser library:
+
 - Variables support
-- PostgreSQL array types support
+- PostgreSQL array type support
 - Comments support
-
-## Tasks
-
-1. Create structure for taking CLI commands.
-2. Process `generate schema` command that generates `schema.sql` file from the PostgreSQL database connection options.
-3. Process `generate queries` command that reads all the queries from the SQL files.
-4. Write tests to run CLI commands.
-5. Function taking AST of the query and generating projection.
-6. Function converting query projection to TypeScript types and generating SDK code.
-7. Function converting schema projection to TypeScript types.
-8. Utility functions for reading and writing files to disk.
