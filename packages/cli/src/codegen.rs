@@ -32,14 +32,16 @@ impl Codegen {
     }
 
     pub fn connect(&self) -> Result<postgres::Client, error::CodegenError> {
-        let params = format!(
-            "host={host} user={user} port={port} dbname={database} password={password}",
-            host = self.config.connection.host,
-            user = self.config.connection.user,
-            port = self.config.connection.port,
-            database = self.config.connection.database,
-            password = self.config.connection.password
-        );
+        let host = &self.config.connection.host;
+        let user = &self.config.connection.user;
+        let port = &self.config.connection.port;
+        let database = &self.config.connection.database;
+        let password = &self.config.connection.password;
+        let password = match password {
+            Some(password) => format!(" password={password}"),
+            None => "".to_string(),
+        };
+        let params = format!("host={host} user={user} port={port} dbname={database}{password}");
         let client = postgres::Client::connect(&params, NoTls)?;
         Ok(client)
     }

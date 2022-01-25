@@ -13,7 +13,7 @@ pub struct ConnectionConfig {
     pub user: String,
     pub port: u16,
     pub database: String,
-    pub password: String,
+    pub password: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
