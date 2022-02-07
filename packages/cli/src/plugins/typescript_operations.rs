@@ -17,11 +17,16 @@ impl<'a> TypeScriptOperationsPlugin<'a> {
         }
     }
 
+    pub fn get_array_result_element_name(&self, selection: &data::Selection) -> String {
+        selection.column_name.clone()
+    }
+
     pub fn get_array_result_element_definition(&self, selection: &data::Selection) -> String {
+        let name = self.get_array_result_element_name(selection);
         let ts_type = self
             .typescript_plugin
             .get_column_field_type_name(selection.column);
-        format!("\t{ts_type},")
+        format!("\t{name}: {ts_type},")
     }
 
     pub fn get_object_result_field_name(&self, selection: &data::Selection) -> String {
